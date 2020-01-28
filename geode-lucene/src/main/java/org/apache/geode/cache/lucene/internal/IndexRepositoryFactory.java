@@ -152,7 +152,7 @@ public class IndexRepositoryFactory {
     return new IndexWriter(dir, config);
   }
 
-  private boolean reindexUserDataRegion(Integer bucketId, PartitionedRegion userRegion,
+  public boolean reindexUserDataRegion(Integer bucketId, PartitionedRegion userRegion,
       PartitionedRegion fileRegion, BucketRegion dataBucket, IndexRepository repo)
       throws IOException {
     Set<IndexRepository> affectedRepos = new HashSet<>();

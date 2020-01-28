@@ -50,6 +50,7 @@ import org.apache.geode.cache.RegionAttributes;
 import org.apache.geode.cache.RegionDestroyedException;
 import org.apache.geode.cache.TimeoutException;
 import org.apache.geode.cache.partition.PartitionListener;
+import org.apache.geode.distributed.DistributedLockService;
 import org.apache.geode.distributed.DistributedMember;
 import org.apache.geode.distributed.DistributedSystem;
 import org.apache.geode.distributed.internal.AtomicLongWithTerminalState;
@@ -557,6 +558,42 @@ public class BucketRegion extends DistributedRegion implements Bucket {
     }
   }
 
+  @Override
+  void cmnClearRegion(RegionEventImpl regionEvent, boolean cacheWrite, boolean useRVV) {
+    boolean enableRVV = useRVV && getConcurrencyChecksEnabled();
+    RegionVersionVector rvv = null;
+    if (enableRVV) {
+      rvv = getVersionVector();
+    }
+
+    // lock the primary from moving
+    DistributedLockService lockService = DistributedLockService
+        .getServiceNamed(PartitionedRegionHelper.PARTITION_LOCK_SERVICE_NAME);
+    String lockName = this.getFullPath();
+    while (!lockService.lock(lockName, 100, -1)) {
+      if (!getBucketAdvisor().isPrimary()) {
+        PartitionedRegionException pre =
+            new PartitionedRegionException(
+                "The bucket " + this.getId() + " is no longer a primary. Retry the clear");
+        throw pre;
+      }
+    }
+
+    // get rvvLock
+    Set<InternalDistributedMember> participants =
+        getCacheDistributionAdvisor().adviseInvalidateRegion();
+    try {
+      obtainWriteLocksForClear(regionEvent, participants);
+      clearRegionLocally(regionEvent, cacheWrite, null);
+      if (!regionEvent.isOriginRemote() && regionEvent.getOperation().isDistributed()) {
+        DistributedClearOperation.clear(regionEvent, rvv, participants);
+      }
+
+      // TODO: call reindexUserDataRegion if there're lucene indexes
+    } finally {
+      releaseWriteLocksForClear(regionEvent, participants);
+    }
+  }
 
   long generateTailKey() {
     long key = eventSeqNum.addAndGet(partitionedRegion.getTotalNumberOfBuckets());
