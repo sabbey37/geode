@@ -570,28 +570,34 @@ public class BucketRegion extends DistributedRegion implements Bucket {
     DistributedLockService lockService = DistributedLockService
         .getServiceNamed(PartitionedRegionHelper.PARTITION_LOCK_SERVICE_NAME);
     String lockName = this.getFullPath();
-    while (!lockService.lock(lockName, 100, -1)) {
-      if (!getBucketAdvisor().isPrimary()) {
-        PartitionedRegionException pre =
-            new PartitionedRegionException(
-                "The bucket " + this.getId() + " is no longer a primary. Retry the clear");
-        throw pre;
-      }
-    }
-
-    // get rvvLock
-    Set<InternalDistributedMember> participants =
-        getCacheDistributionAdvisor().adviseInvalidateRegion();
+    boolean locked = lockService.lock(lockName, 100, -1);
     try {
-      obtainWriteLocksForClear(regionEvent, participants);
-      clearRegionLocally(regionEvent, cacheWrite, null);
-      if (!regionEvent.isOriginRemote() && regionEvent.getOperation().isDistributed()) {
-        DistributedClearOperation.clear(regionEvent, rvv, participants);
-      }
+      // this code has to be moved to the Message, because the cmnClearRegion is shared by many places.
+      // if (!locked || !getBucketAdvisor().isPrimary()) {
+      // PartitionedRegionException pre =
+      // new PartitionedRegionException(
+      // "The bucket " + this.getId() + " is no longer a primary. Retry the clear");
+      // throw pre;
+      // }
 
-      // TODO: call reindexUserDataRegion if there're lucene indexes
+      // get rvvLock
+      Set<InternalDistributedMember> participants =
+          getCacheDistributionAdvisor().adviseInvalidateRegion();
+      try {
+        obtainWriteLocksForClear(regionEvent, participants);
+        clearRegionLocally(regionEvent, cacheWrite, null);
+        if (!regionEvent.isOriginRemote() && regionEvent.getOperation().isDistributed()) {
+          DistributedClearOperation.clear(regionEvent, rvv, participants);
+        }
+
+        // TODO: call reindexUserDataRegion if there're lucene indexes
+      } finally {
+        releaseWriteLocksForClear(regionEvent, participants);
+      }
     } finally {
-      releaseWriteLocksForClear(regionEvent, participants);
+      if (locked) {
+        lockService.unlock(lockName);
+      }
     }
   }
 
