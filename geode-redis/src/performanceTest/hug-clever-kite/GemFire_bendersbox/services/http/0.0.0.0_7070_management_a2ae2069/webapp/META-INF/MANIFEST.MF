@@ -1,6 +1,0 @@
-Manifest-Version: 1.0
-Organization: Pivotal Software, Inc.
-Title: geode
-Version: 9.9.1
-Created-By: root
-
