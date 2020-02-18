@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #start geode redis
 #start redis becnhmark and listen to gedoe redis API
 
@@ -12,4 +13,4 @@ gfsh -e "start server
 
 redis-benchmark -t set, get -n 10000 -q --csv
 
-gfsh -e "connect shutdown include-locators=true"
+gfsh -e "connect" -e "shutdown --include-locators=true"
