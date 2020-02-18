@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
-#start geode redis
-#start redis becnhmark and listen to gedoe redis API
+
+# decide what commands we're testing
+
+baseLineCommit=$1
+comparisonCommit=$2
+
+echo "baseLineCommit: ${baseLineCommit}"
+echo "comparisonCommit: ${comparisonCommit}"
+
+git stash
+git co ${baseLineCommit}
 
 gfsh -e "start locator"
 
@@ -11,6 +20,6 @@ gfsh -e "start server
           --redis-port=6379
           --redis-bind-address=127.0.0.1"
 
-redis-benchmark -t set, get -n 10000 -q --csv
+redis-benchmark -t set,get -q -n 10000
 
 gfsh -e "connect" -e "shutdown --include-locators=true"
