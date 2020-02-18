@@ -12,15 +12,16 @@ echo "comparisonCommit: ${comparisonCommit}"
 originalBranch=$(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
 echo " originalBranch: ${originalBranch}"
 
-
-git co ${baseLineCommit}
-  returnCode=$?
+git checkout ${baseLineCommit}
+returnCode=$?
 echo " returnCode: ${returnCode}"
-# if [[ returnCode -eq 0 ]] ; then
-#    git stash
-#    $neededToStash=true
-#    git co ${baseLineCommit}
-#fi
+ if [[ ${returnCode} -ne 0 ]] ; then
+    git stash
+    neededToStash=true
+    git co ${baseLineCommit}
+fi
+
+echo "STASHHHHHH: ${neededToStash}"
 
 gfsh -e "start locator"
 
@@ -35,4 +36,9 @@ redis-benchmark -t set,get -q -n 10000
 
 gfsh -e "connect" -e "shutdown --include-locators=true"
 
-git co ${originalBranch}
+git checkout ${originalBranch}
+
+if [[ ${neededToStash} ]] ; then
+  echo "POPPING THE STASH"
+  git stash pop
+fi
