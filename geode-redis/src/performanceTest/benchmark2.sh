@@ -3,25 +3,6 @@
 set -e
 set -x
 
-# decide which commands we're testing
-function aggregate() {
-  local command=$1
-
-  grep ${command} results.csv | cut -d"," -f 2 | cut -d"\"" -f 2 | awk '{ sum += $1 } END { if (NR > 0) print sum / NR }'
-}
-
-redis_benchmark_commands=(
-  "SET"
-  "GET"
-  "INCR"
-  "LPUSH"
-  "RPUSH"
-  "LPOP"
-  "RPOP"
-  "SADD"
-  "SPOP"
-)
-
 SCRIPT_DIR=$(
   cd $(dirname $0)
   pwd
@@ -52,22 +33,6 @@ $GFSH -e "start server
 
 cd ${SCRIPT_DIR}
 
-rm -f results.csv
-
-X=0
-while [[ ${X} -lt 25 ]]; do
-  redis-benchmark -t set,get -q -n 100000 --csv >>results.csv
-
-  ((X = X + 1))
-done
-
-CURRENT_SHA=$(git rev-parse --short HEAD)
-AGGREGATE_FILE_NAME=${CURRENT_SHA}-aggregate.csv
-
-echo "Command", "Average Requests Per Second" >${AGGREGATE_FILE_NAME}
-for command in ${redis_benchmark_commands[@]}; do
-  SUM_AGGREGATE=$(aggregate ${command})
-  echo ${command}, ${SUM_AGGREGATE} >>${AGGREGATE_FILE_NAME}
-done
+./aggregator.sh
 
 $GFSH -e "connect" -e "shutdown --include-locators=true"
