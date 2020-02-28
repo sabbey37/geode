@@ -11,12 +11,27 @@ function aggregate() {
 }
 
 redis_benchmark_commands=(
-    "GET"
-    "SET"
+  "SET"
+  "GET"
+  "INCR"
+  "LPUSH"
+  "RPUSH"
+  "LPOP"
+  "RPOP"
+  "SADD"
+  "SPOP"
 )
 
-SCRIPT_DIR=$( cd $(dirname $0); pwd )
-GEODE_BASE=$( cd $SCRIPT_DIR/../../..; pwd )
+SCRIPT_DIR=$(
+  cd $(dirname $0)
+  pwd
+)
+GEODE_BASE=$(
+  cd $SCRIPT_DIR/../../..
+  pwd
+)
+
+cd $GEODE_BASE
 
 ./gradlew devBuild installD
 
@@ -35,23 +50,24 @@ $GFSH -e "start server
           --redis-port=6379
           --redis-bind-address=127.0.0.1"
 
+cd ${SCRIPT_DIR}
+
 rm -f results.csv
-rm -f aggregate.csv
 
 X=0
 while [[ ${X} -lt 25 ]]; do
-  redis-benchmark -t set,get -q -n 100000  --csv >> results.csv
+  redis-benchmark -t set,get -q -n 100000 --csv >>results.csv
 
   ((X = X + 1))
 done
 
-echo "Command", "Average Requests Per Second" >> aggregate.csv
+CURRENT_SHA=$(git rev-parse --short HEAD)
+AGGREGATE_FILE_NAME=${CURRENT_SHA}-aggregate.csv
+
+echo "Command", "Average Requests Per Second" >${AGGREGATE_FILE_NAME}
 for command in ${redis_benchmark_commands[@]}; do
-    SUM_AGGREGATE=$(aggregate ${command})
-    echo ${command}, ${SUM_AGGREGATE} >> aggregate.csv
+  SUM_AGGREGATE=$(aggregate ${command})
+  echo ${command}, ${SUM_AGGREGATE} >>${AGGREGATE_FILE_NAME}
 done
 
-
-
-#$GFSH -e "connect" -e "shutdown --include-locators=true"
-
+$GFSH -e "connect" -e "shutdown --include-locators=true"
