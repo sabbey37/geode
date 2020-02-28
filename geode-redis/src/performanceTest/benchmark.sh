@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# decide what commands we're testing
+# decide which commands we're testing
 
 baseLineCommit=$1
 comparisonCommit=$2
