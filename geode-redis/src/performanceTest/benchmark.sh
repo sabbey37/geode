@@ -94,5 +94,5 @@ cd ${SCRIPT_DIR}
 ./aggregator.sh -h ${REDIS_HOST} -p ${REDIS_PORT} -t "${TEST_RUN_COUNT}" -c "${COMMAND_REPETITION_COUNT}"
 
 if [ ${SERVER_TYPE} == "geode" ]; then
-  $GFSH -e "connect" -e "shutdown --include-locators=true"
+  $GFSH -e "connect" -e "shutdown --time-out=30 --include-locators=true"
 fi
