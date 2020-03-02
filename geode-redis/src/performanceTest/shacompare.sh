@@ -37,10 +37,10 @@ RETURN_CODE=$?
   exit 1
 fi
 
-./benchmark.sh -g
+bash benchmark.sh -g
 
 git checkout ${COMPARISON_COMMIT}
 
-./benchmark.sh -g
+bash benchmark.sh -g
 
 git checkout ${ORIGINAL_BRANCH}
