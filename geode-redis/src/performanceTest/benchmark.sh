@@ -1,57 +1,98 @@
 #!/usr/bin/env bash
 
-# decide which commands we're testing
+SERVER_TYPE=""
+TEST_RUN_COUNT=10
+COMMAND_REPETITION_COUNT=100000
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
-baseLineCommit=$1
-comparisonCommit=$2
-neededToStash=false
+while getopts ":rgt:c:h:p:" opt; do
+  case ${opt} in
+  r)
+    SERVER_TYPE='redis'
+    ;;
+  g)
+    SERVER_TYPE='geode'
+    ;;
+  t)
+    TEST_RUN_COUNT=${OPTARG}
+    ;;
+  c)
+    COMMAND_REPETITION_COUNT=${OPTARG}
+    ;;
+  h)
+    REDIS_HOST=${OPTARG}
+    ;;
+  p)
+    REDIS_PORT=${OPTARG}
+    ;;
+  \?)
+    echo "Usage: ${0} -r (Redis) | -g (Geode) [-h host] [-p port] [-t (test run count)] [-c (command repetition count)]"
+    exit 0
+    ;;
+  :)
+    echo "Invalid option: $OPTARG requires an argument" 1>&2
+    exit 1
+    ;;
+  esac
+done
 
-echo "baseLineCommit: ${baseLineCommit}"
-echo "comparisonCommit: ${comparisonCommit}"
+if [ -z ${SERVER_TYPE} ]; then
+  echo "Please specify native Redis (-r) or Geode Redis (-g)"
+  exit 1
+fi
 
-originalBranch=$(git branch | sed -n -e 's/^\* \(.*\)/\1/p')
-echo " originalBranch: ${originalBranch}"
+SCRIPT_DIR=$(
+  cd $(dirname $0)
+  pwd
+)
 
-#git checkout ${baseLineCommit}
-#returnCode=$?
-#echo " returnCode: ${returnCode}"
-# if [[ ${returnCode} -ne 0 ]] ; then
-#    git stash
-#    neededToStash=true
-#    git co ${baseLineCommit}
-#fi
 
-echo "STASHHHHHH: ${neededToStash}"
+nc -zv ${REDIS_HOST} ${REDIS_PORT} 1>&2
+SERVER_NOT_FOUND=$?
 
-gfsh -e "start locator"
+if [ ${SERVER_TYPE} == "geode" ]; then
+  if [ ${SERVER_NOT_FOUND} -eq 0 ]; then
+    echo "Redis server detected already running at port ${REDIS_PORT}}"
+    echo "Please stop sever before running this script"
+    exit 1
+  fi
 
-gfsh -e "start server
+  GEODE_BASE=$(
+    cd $SCRIPT_DIR/../../..
+    pwd
+  )
+
+  cd $GEODE_BASE
+
+  ./gradlew devBuild installD
+
+  GFSH=$PWD/geode-assembly/build/install/apache-geode/bin/gfsh
+
+  pkill -9 -f ServerLauncher || true
+  rm -rf server1
+  rm -rf locator1
+
+  $GFSH -e "start locator --name=locator1"
+
+  $GFSH -e "start server
           --name=server1
+          --log-level=none
           --locators=localhost[10334]
           --server-port=0
           --redis-port=6379
           --redis-bind-address=127.0.0.1"
+else
+  if [ ${SERVER_NOT_FOUND} -eq 1 ]; then
+    echo "No Redis server detected on host '${REDIS_HOST}' at port '${REDIS_PORT}'"
+    exit 1
+  fi
+fi
 
-redis-benchmark -t set,get -q -n 100000  --csv > results.csv
+cd ${SCRIPT_DIR}
 
-gfsh -e "connect" -e "shutdown --include-locators=true"
+./aggregator.sh -h ${REDIS_HOST} -p ${REDIS_PORT} -t "${TEST_RUN_COUNT}" -c "${COMMAND_REPETITION_COUNT}"
 
-#git checkout ${originalBranch}
-#
-#if [[ ${neededToStash} ]] ; then
-#  echo "POPPING THE STASH"
-#  git stash pop
-#fi
-
-gfsh -e "start locator"
-
-gfsh -e "start server
-          --name=server1
-         --locators=localhost[10334]
-          --server-port=0
-          --redis-port=6379
-          --redis-bind-address=127.0.0.1"
-
-redis-benchmark -t set,get -q -n 100000  --csv > results2.csv
-
-gfsh -e "connect" -e "shutdown --include-locators=true"
+if [ ${SERVER_TYPE} == "geode" ]; then
+  $GFSH -e "connect" -e "shutdown --include-locators=true"
+fi

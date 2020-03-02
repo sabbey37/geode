@@ -1,9 +1,35 @@
 #!/usr/bin/env bash
 
-set -e
-set -x
+TEST_RUN_COUNT=10
+COMMAND_REPETITION_COUNT=100000
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
-TEST_RUN_COUNT=1
+while getopts ":t:c:h:p:" opt; do
+  case ${opt} in
+  t)
+    TEST_RUN_COUNT=${OPTARG}
+    ;;
+  c)
+    COMMAND_REPETITION_COUNT=${OPTARG}
+    ;;
+  h)
+    REDIS_HOST=${OPTARG}
+    ;;
+  p)
+    REDIS_PORT=${OPTARG}
+    ;;
+  \?)
+    echo "Usage: ${0} [-h host] [-p port] [-t (test run count)] [-c (command repetition count)]"
+    ;;
+  :)
+    echo "Invalid option: $OPTARG requires an argument" 1>&2
+    exit 1
+    ;;
+  esac
+done
+
+
 redis_benchmark_commands=("SET" "GET" "INCR" "LPUSH" "RPUSH" "LPOP" "RPOP" "SADD" "SPOP")
 
 function aggregate() {
@@ -31,7 +57,8 @@ rm -f results.csv
 
 X=0
 while [[ ${X} -lt ${TEST_RUN_COUNT} ]]; do
-  redis-benchmark -t ${REDIS_COMMAND_STRING} -q -n 100000 --csv >>results.csv
+  echo "Run " ${X} " of " ${TEST_RUN_COUNT}
+  redis-benchmark -h ${REDIS_HOST} -p ${REDIS_PORT} -t ${REDIS_COMMAND_STRING} -q -n ${COMMAND_REPETITION_COUNT} --csv >>results.csv
 
   ((X = X + 1))
 done
@@ -44,3 +71,5 @@ for command in ${redis_benchmark_commands[@]}; do
   SUM_AGGREGATE=$(aggregate ${command})
   echo ${command}, ${SUM_AGGREGATE} >>${AGGREGATE_FILE_NAME}
 done
+
+echo "Results saved to " ${AGGREGATE_FILE_NAME}
