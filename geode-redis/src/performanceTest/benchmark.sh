@@ -96,3 +96,6 @@ cd ${SCRIPT_DIR}
 if [ ${SERVER_TYPE} == "geode" ]; then
   $GFSH -e "connect" -e "shutdown --time-out=30 --include-locators=true"
 fi
+
+# Even with the "--time-out" argument, the shutdown isn't always complete
+sleep 1
