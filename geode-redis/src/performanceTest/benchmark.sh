@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 SERVER_TYPE=""
-TEST_RUN_COUNT=1
-COMMAND_REPETITION_COUNT=100
+TEST_RUN_COUNT=10
+COMMAND_REPETITION_COUNT=100000
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
@@ -52,7 +52,6 @@ function kill_geode() {
   pkill -9 -f LocatorLauncher || true
   rm -rf server1
   rm -rf locator1
-  echo "Geode slain!"
 }
 
 nc -zv ${REDIS_HOST} ${REDIS_PORT} 1>&2
