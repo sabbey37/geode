@@ -47,6 +47,12 @@ SCRIPT_DIR=$(
   pwd
 )
 
+kill_geode () {
+  pkill -9 -f ServerLauncher || true
+  pkill -9 -f LocatorLauncher || true
+  rm -rf server1
+  rm -rf locator1
+}
 
 nc -zv ${REDIS_HOST} ${REDIS_PORT} 1>&2
 SERVER_NOT_FOUND=$?
@@ -65,13 +71,11 @@ if [ ${SERVER_TYPE} == "geode" ]; then
 
   cd $GEODE_BASE
 
+  kill_geode
+
   ./gradlew devBuild installD
 
   GFSH=$PWD/geode-assembly/build/install/apache-geode/bin/gfsh
-
-  pkill -9 -f ServerLauncher || true
-  rm -rf server1
-  rm -rf locator1
 
   $GFSH -e "start locator --name=locator1"
 
@@ -94,8 +98,5 @@ cd ${SCRIPT_DIR}
 ./aggregator.sh -h ${REDIS_HOST} -p ${REDIS_PORT} -t "${TEST_RUN_COUNT}" -c "${COMMAND_REPETITION_COUNT}"
 
 if [ ${SERVER_TYPE} == "geode" ]; then
-  $GFSH -e "connect" -e "shutdown --time-out=30 --include-locators=true"
+  kill_geode
 fi
-
-# Even with the "--time-out" argument, the shutdown isn't always complete
-sleep 1

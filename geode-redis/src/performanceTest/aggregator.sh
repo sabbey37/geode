@@ -4,14 +4,18 @@ TEST_RUN_COUNT=10
 COMMAND_REPETITION_COUNT=100000
 REDIS_HOST=localhost
 REDIS_PORT=6379
+FILE_PREFIX=$(git rev-parse --short HEAD)
 
-while getopts ":t:c:h:p:" opt; do
+while getopts ":t:c:h:p:n:" opt; do
   case ${opt} in
   t)
     TEST_RUN_COUNT=${OPTARG}
     ;;
   c)
     COMMAND_REPETITION_COUNT=${OPTARG}
+    ;;
+  n)
+    FILE_PREFIX=${OPTARG}
     ;;
   h)
     REDIS_HOST=${OPTARG}
@@ -58,13 +62,12 @@ rm -f results.csv
 X=0
 while [[ ${X} -lt ${TEST_RUN_COUNT} ]]; do
   echo "Run " ${X} " of " ${TEST_RUN_COUNT}
-  redis-benchmark -h ${REDIS_HOST} -p ${REDIS_PORT} -t ${REDIS_COMMAND_STRING} -q -n ${COMMAND_REPETITION_COUNT} --csv >>results.csv
+  redis-benchmark -h ${REDIS_HOST} -p ${REDIS_PORT} -t ${REDIS_COMMAND_STRING} -q -n ${COMMAND_REPETITION_COUNT} -r 32767 --csv >>results.csv
 
   ((X = X + 1))
 done
 
-CURRENT_SHA=$(git rev-parse --short HEAD)
-AGGREGATE_FILE_NAME=${CURRENT_SHA}-aggregate.csv
+AGGREGATE_FILE_NAME=${FILE_PREFIX}-aggregate.csv
 
 echo "Command", "Average Requests Per Second" >${AGGREGATE_FILE_NAME}
 for command in ${redis_benchmark_commands[@]}; do
