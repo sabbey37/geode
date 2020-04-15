@@ -20,16 +20,14 @@ import static org.apache.geode.distributed.ConfigurationProperties.LOG_LEVEL;
 import static org.apache.geode.distributed.ConfigurationProperties.MCAST_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.params.SetParams;
 
 import org.apache.geode.cache.CacheFactory;
 import org.apache.geode.cache.GemFireCache;
@@ -41,6 +39,7 @@ public class ExistsIntegrationTest {
 
   public static Jedis jedis;
   public static Jedis jedis2;
+  public static Jedis jedis3;
   public static int REDIS_CLIENT_TIMEOUT =
       Math.toIntExact(GeodeAwaitility.getTimeout().toMillis());;
   private static GeodeRedisServer server;
@@ -59,6 +58,7 @@ public class ExistsIntegrationTest {
     server.start();
     jedis = new Jedis("localhost", port, REDIS_CLIENT_TIMEOUT);
     jedis2 = new Jedis("localhost", port, REDIS_CLIENT_TIMEOUT);
+    jedis3 = new Jedis("localhost", port, REDIS_CLIENT_TIMEOUT);
   }
 
   @After
@@ -69,12 +69,15 @@ public class ExistsIntegrationTest {
   @AfterClass
   public static void tearDown() {
     jedis.close();
+    jedis2.close();
+    jedis3.close();
     cache.close();
     server.shutdown();
   }
 
-  public String[] toArray(String... strings) {
-    return strings;
+  @Test
+  public void shouldReturnZero_givenKeyDoesNotExist() {
+    assertThat(jedis.exists(toArray("doesNotExist"))).isEqualTo(0L);
   }
 
   @Test
@@ -87,8 +90,13 @@ public class ExistsIntegrationTest {
   }
 
   @Test
-  public void shouldReturnZero_givenKeyDoesNotExist() {
-    assertThat(jedis.exists(toArray("doesNotExist"))).isEqualTo(0L);
+  public void shouldReturn0_givenStringDoesNotExist() {
+    String stringKey = "stringKey";
+    String stringValue = "stringValue";
+    jedis.set(stringKey, stringValue);
+    jedis.del(stringKey);
+
+    assertThat(jedis.exists(toArray(stringKey))).isEqualTo(0L);
   }
 
   @Test
@@ -99,6 +107,17 @@ public class ExistsIntegrationTest {
     jedis.sadd(setKey, setMember);
 
     assertThat(jedis.exists(toArray(setKey))).isEqualTo(1L);
+  }
+
+  @Test
+  public void shouldReturn0_givenSetDoesNotExist() {
+    String setKey = "setKey";
+    String setMember = "setValue";
+
+    jedis.sadd(setKey, setMember);
+    jedis.del(setKey);
+
+    assertThat(jedis.exists(toArray(setKey))).isEqualTo(0L);
   }
 
   @Test
@@ -113,6 +132,18 @@ public class ExistsIntegrationTest {
   }
 
   @Test
+  public void shouldReturn0_givenSortedSetDoesNotExist() {
+    String sortedSetKey = "sortedSetKey";
+    double score = 2.0;
+    String sortedSetMember = "sortedSetMember";
+
+    jedis.zadd(sortedSetKey, score, sortedSetMember);
+    jedis.del(sortedSetKey);
+
+    assertThat(jedis.exists(toArray(sortedSetKey))).isEqualTo(0L);
+  }
+
+  @Test
   public void shouldReturn1_givenHashExists() {
     String hashKey = "hashKey";
     String hashField = "hashField";
@@ -124,15 +155,40 @@ public class ExistsIntegrationTest {
   }
 
   @Test
+  public void shouldReturn0_givenHashDoesNotExist() {
+    String hashKey = "hashKey";
+    String hashField = "hashField";
+    String hashValue = "hashValue";
+
+    jedis.hset(hashKey, hashField, hashValue);
+    jedis.del(hashKey);
+
+    assertThat(jedis.exists(toArray(hashKey))).isEqualTo(0L);
+  }
+
+  @Test
   public void shouldReturn1_givenGeoExists() {
     String geoKey = "sicily";
     double latitude = 13.361389;
     double longitude = 38.115556;
-    String geoMember = "Palermo Catina";
+    String geoMember = "Palermo Catania";
 
     jedis.geoadd(geoKey, latitude, longitude, geoMember);
 
     assertThat(jedis.exists(toArray(geoKey))).isEqualTo(1L);
+  }
+
+  @Test
+  public void shouldReturn0_givenGeoDoesNotExist() {
+    String geoKey = "sicily";
+    double latitude = 13.361389;
+    double longitude = 38.115556;
+    String geoMember = "Palermo Catania";
+
+    jedis.geoadd(geoKey, latitude, longitude, geoMember);
+    jedis.del(geoKey);
+
+    assertThat(jedis.exists(toArray(geoKey))).isEqualTo(0L);
   }
 
   @Test
@@ -146,6 +202,17 @@ public class ExistsIntegrationTest {
   }
 
   @Test
+  public void shouldReturn0_givenHyperLogLogDoesNotExist() {
+    String hyperLogLogKey = "crawled:127.0.0.2";
+    String hyperLogLogValue = "www.insideTheHouse.com";
+
+    jedis.pfadd(hyperLogLogKey, hyperLogLogValue);
+    jedis.del(hyperLogLogKey);
+
+    assertThat(jedis.exists(toArray(hyperLogLogKey))).isEqualTo(0L);
+  }
+
+  @Test
   public void shouldReturn1_givenListExists() {
     String listKey = "listKey";
     String listValue = "listValue";
@@ -156,7 +223,18 @@ public class ExistsIntegrationTest {
   }
 
   @Test
-  public void shouldReturn1_givenBitMapValue() {
+  public void shouldReturn0_givenListDoesNotExist() {
+    String listKey = "listKey";
+    String listValue = "listValue";
+
+    jedis.lpush(listKey, listValue);
+    jedis.del(listKey);
+
+    assertThat(jedis.exists(toArray(listKey))).isEqualTo(0L);
+  }
+
+  @Test
+  public void shouldReturn1_givenBitMapExists() {
     String bitMapKey = "bitMapKey";
     long offset = 1L;
     String bitMapValue = "0";
@@ -164,6 +242,18 @@ public class ExistsIntegrationTest {
     jedis.setbit(bitMapKey, offset, bitMapValue);
 
     assertThat(jedis.exists(toArray(bitMapKey))).isEqualTo(1L);
+  }
+
+  @Test
+  public void shouldReturn0_givenBitMapDoesNotExist() {
+    String bitMapKey = "bitMapKey";
+    long offset = 1L;
+    String bitMapValue = "0";
+
+    jedis.setbit(bitMapKey, offset, bitMapValue);
+    jedis.del(bitMapKey);
+
+    assertThat(jedis.exists(toArray(bitMapKey))).isEqualTo(0L);
   }
 
   @Test
@@ -178,40 +268,81 @@ public class ExistsIntegrationTest {
   }
 
   @Test
-  public void shouldPersistKeysConcurrently() throws InterruptedException {
+  public void shouldCorrectlyVerifyKeysExistConcurrently() throws InterruptedException {
     int iterationCount = 5000;
-    setKeysWithExpiration(jedis, iterationCount);
+    setKeys(jedis, iterationCount);
 
-    AtomicLong persistedFromThread1 = new AtomicLong(0);
-    AtomicLong persistedFromThread2 = new AtomicLong(0);
+    AtomicLong existsCount = new AtomicLong(0);
 
-    Runnable runnable1 = () -> persistKeys(persistedFromThread1, jedis, iterationCount);
-    Runnable runnable2 = () -> persistKeys(persistedFromThread2, jedis2, iterationCount);
-
-    Thread thread1 = new Thread(runnable1);
-    Thread thread2 = new Thread(runnable2);
+    Thread thread1 =
+        new LoopingThread((i) -> existsCount.addAndGet(jedis.exists(toArray("key" + i))),
+            iterationCount);
+    Thread thread2 =
+        new LoopingThread((i) -> existsCount.addAndGet(jedis2.exists(toArray("key" + i))),
+            iterationCount);
 
     thread1.start();
     thread2.start();
     thread1.join();
     thread2.join();
 
-    assertThat(persistedFromThread1.get() + persistedFromThread2.get()).isEqualTo(iterationCount);
+    assertThat(existsCount.get()).isEqualTo(2 * iterationCount);
   }
 
-  private void setKeysWithExpiration(Jedis jedis, int iterationCount) {
-    for (int i = 0; i < iterationCount; i++) {
-      SetParams setParams = new SetParams();
-      setParams.ex(600);
+  @Test
+  public void shouldCorrectlyVerifyKeyExistsConcurrentlyWhileDeletingAndSettingKey()
+      throws InterruptedException {
+    int iterationCount = 5000;
 
-      jedis.set("key" + i, "value" + i, setParams);
+    Thread loopingThread1 = new LoopingThread((i) -> jedis.set("key", "value"), iterationCount);
+    Thread loopingThread2 = new LoopingThread((i) -> jedis2.exists(toArray("key")), iterationCount);
+    Thread loopingThread3 = new LoopingThread((i) -> jedis3.del("key"), iterationCount);
+
+    loopingThread1.start();
+    loopingThread2.start();
+    loopingThread3.start();
+    loopingThread1.join();
+    loopingThread2.join();
+    loopingThread3.join();
+  }
+
+  public String[] toArray(String... strings) {
+    return strings;
+  }
+
+  private void setKeys(Jedis jedis, int iterationCount) {
+    for (int i = 0; i < iterationCount; i++) {
+      jedis.set("key" + i, "value" + i);
     }
   }
 
-  private void persistKeys(AtomicLong atomicLong, Jedis jedis, int iterationCount) {
+  private void existsKeys(AtomicLong existsCount, Jedis jedis, int iterationCount) {
     for (int i = 0; i < iterationCount; i++) {
-      String key = "key" + i;
-      atomicLong.addAndGet(jedis.persist(key));
+      existsCount.addAndGet(jedis.exists("key" + i, "doesNotExist" + i));
+    }
+  }
+
+  private class LoopingThread extends Thread {
+
+    public LoopingThread(Function<Integer, Object> runnable, int iterationCount) {
+      super(new LoopingRunnable(runnable, iterationCount));
+    }
+  }
+
+  private class LoopingRunnable implements Runnable {
+    private final Function<Integer, Object> runnable;
+    private final int iterationCount;
+
+    public LoopingRunnable(Function<Integer, Object> runnable, int iterationCount) {
+      this.runnable = runnable;
+      this.iterationCount = iterationCount;
+    }
+
+    @Override
+    public void run() {
+      for (int i = 0; i < iterationCount; i++) {
+        runnable.apply(i);
+      }
     }
   }
 }

@@ -18,24 +18,19 @@ package org.apache.geode.redis.internal.executor.general;
 import static java.nio.charset.Charset.defaultCharset;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 
 import org.apache.geode.redis.internal.Command;
 import org.apache.geode.redis.internal.ExecutionHandlerContext;
 import org.apache.geode.redis.internal.Executor;
 import org.apache.geode.redis.internal.executor.ExistsExecutor;
-import org.apache.geode.redis.internal.executor.PersistExecutor;
 
 public class ExistsExecutorJUnitTest {
 
