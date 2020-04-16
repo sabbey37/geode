@@ -16,6 +16,9 @@
 
 package org.apache.geode.redis;
 
+import static org.apache.geode.distributed.ConfigurationProperties.MAX_WAIT_TIME_RECONNECT;
+import static org.apache.geode.distributed.ConfigurationProperties.REDIS_BIND_ADDRESS;
+import static org.apache.geode.distributed.ConfigurationProperties.REDIS_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.LinkedList;
@@ -26,10 +29,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPubSub;
 
 import org.apache.geode.distributed.ConfigurationProperties;
 import org.apache.geode.internal.AvailablePortHelper;
@@ -43,27 +49,91 @@ public class PubSubDUnitTest {
   public static final String CHANNEL_NAME = "salutations";
 
   @ClassRule
-  public static ClusterStartupRule cluster = new ClusterStartupRule();
+  public static ClusterStartupRule cluster = new ClusterStartupRule(4);
 
   @ClassRule
   public static ExecutorServiceRule executor = new ExecutorServiceRule();
 
   private static int[] ports;
 
-  private static MemberVM server1, server2;
+  static final String LOCAL_HOST = "127.0.0.1";
+  static final int SET_SIZE = 1000;
+  static Jedis subscriber1;
+  static Jedis subscriber2;
+  static Jedis publisher;
+
+  static Properties locatorProperties;
+  static Properties serverProperties1;
+  static Properties serverProperties2;
+  static Properties serverProperties3;
+
+  static MemberVM oldServer1;
+  static MemberVM oldServer2;
+
+  static MemberVM locator;
+  static MemberVM server1;
+  static MemberVM server2;
+  static MemberVM server3;
 
   @BeforeClass
   public static void beforeClass() {
+    locatorProperties = new Properties();
+    serverProperties1 = new Properties();
+    serverProperties2 = new Properties();
+    serverProperties3 = new Properties();
+
+    locatorProperties.setProperty(MAX_WAIT_TIME_RECONNECT, "15000");
+
+    serverProperties1.setProperty(REDIS_PORT, "6371");
+    serverProperties1.setProperty(REDIS_BIND_ADDRESS, LOCAL_HOST);
+
+    serverProperties2.setProperty(REDIS_PORT, "6372");
+    serverProperties2.setProperty(REDIS_BIND_ADDRESS, LOCAL_HOST);
+
+    serverProperties3.setProperty(REDIS_PORT, "6373");
+    serverProperties3.setProperty(REDIS_BIND_ADDRESS, LOCAL_HOST);
+
     ports = AvailablePortHelper.getRandomAvailableTCPPorts(2);
     Properties redisProps = new Properties();
     redisProps.put(ConfigurationProperties.REDIS_BIND_ADDRESS, "localhost");
 
-    MemberVM locator = cluster.startLocatorVM(0);
+    MemberVM oldLocator = cluster.startLocatorVM(0);
 
     redisProps.put(ConfigurationProperties.REDIS_PORT, Integer.toString(ports[0]));
-    server1 = cluster.startServerVM(1, redisProps, locator.getPort());
+    oldServer1 = cluster.startServerVM(1, redisProps, oldLocator.getPort());
     redisProps.put(ConfigurationProperties.REDIS_PORT, Integer.toString(ports[1]));
-    server2 = cluster.startServerVM(2, redisProps, locator.getPort());
+    oldServer2 = cluster.startServerVM(2, redisProps, oldLocator.getPort());
+
+    locator = cluster.startLocatorVM(0, locatorProperties);
+    server1 = cluster.startServerVM(1, serverProperties1, locator.getPort());
+    server2 = cluster.startServerVM(2, serverProperties2, locator.getPort());
+    server3 = cluster.startServerVM(3, serverProperties3, locator.getPort());
+
+    subscriber1 = new Jedis(LOCAL_HOST, 6371);
+    subscriber2 = new Jedis(LOCAL_HOST, 6372);
+    publisher = new Jedis(LOCAL_HOST, 6373);
+  }
+
+  @Before
+  public void testSetup() {
+    subscriber1.flushAll();
+  }
+
+  @AfterClass
+  public static void tearDown() {
+    subscriber1.disconnect();
+    subscriber2.disconnect();
+    publisher.disconnect();
+
+    server1.stop();
+    server2.stop();
+    server3.stop();
+  }
+
+  @Test
+  public void shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribers() {
+
+    Runnable subscriberRunnable = () -> subscriber1.subscribe();
   }
 
   @Test
@@ -143,5 +213,7 @@ public class PubSubDUnitTest {
     assertThat(mockSubscriber1.getReceivedMessages().size()).isEqualTo(CLIENT_COUNT * ITERATIONS);
     assertThat(mockSubscriber2.getReceivedMessages().size()).isEqualTo(CLIENT_COUNT * ITERATIONS);
   }
+
+
 
 }
