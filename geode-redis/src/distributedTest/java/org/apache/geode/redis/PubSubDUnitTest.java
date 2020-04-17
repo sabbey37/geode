@@ -95,9 +95,9 @@ public class PubSubDUnitTest {
     server2 = cluster.startServerVM(2, serverProperties2, locator.getPort());
     server3 = cluster.startServerVM(3, serverProperties3, locator.getPort());
 
-    subscriber1 = new Jedis(LOCAL_HOST, server1.getPort());
-    subscriber2 = new Jedis(LOCAL_HOST, server2.getPort());
-    publisher = new Jedis(LOCAL_HOST, server3.getPort());
+    subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
+    subscriber2 = new Jedis(LOCAL_HOST, ports[1]);
+    publisher = new Jedis(LOCAL_HOST, ports[2]);
   }
 
   @Before
@@ -143,14 +143,15 @@ public class PubSubDUnitTest {
     result = publisher.publish(CHANNEL_NAME, "hello again");
     assertThat(result).isEqualTo(1);
     assertThat(mockSubscriber1.getReceivedMessages()).containsExactlyInAnyOrder("hello");
-    assertThat(mockSubscriber2.getReceivedMessages()).containsExactlyInAnyOrder("hello", "hello again");
+    assertThat(mockSubscriber2.getReceivedMessages()).containsExactlyInAnyOrder("hello",
+        "hello again");
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
 
     GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
 
     cluster.startServerVM(1, serverProperties1, locator.getPort());
-    subscriber1 = new Jedis(LOCAL_HOST, server1.getPort());
+    subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
   }
 
   @Test
