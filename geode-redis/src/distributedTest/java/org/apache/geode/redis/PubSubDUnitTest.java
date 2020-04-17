@@ -37,7 +37,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
 
-import org.apache.geode.distributed.ConfigurationProperties;
 import org.apache.geode.internal.AvailablePortHelper;
 import org.apache.geode.test.awaitility.GeodeAwaitility;
 import org.apache.geode.test.dunit.rules.ClusterStartupRule;
@@ -91,24 +90,14 @@ public class PubSubDUnitTest {
     serverProperties3.setProperty(REDIS_PORT, valueOf(ports[2]));
     serverProperties3.setProperty(REDIS_BIND_ADDRESS, LOCAL_HOST);
 
-//    Properties redisProps = new Properties();
-//    redisProps.put(ConfigurationProperties.REDIS_BIND_ADDRESS, "localhost");
-
-//    MemberVM oldLocator = cluster.startLocatorVM(0);
-//
-//    redisProps.put(ConfigurationProperties.REDIS_PORT, Integer.toString(ports[0]));
-//    oldServer1 = cluster.startServerVM(1, redisProps, oldLocator.getPort());
-//    redisProps.put(ConfigurationProperties.REDIS_PORT, Integer.toString(ports[1]));
-//    oldServer2 = cluster.startServerVM(2, redisProps, oldLocator.getPort());
-
     locator = cluster.startLocatorVM(0, locatorProperties);
     server1 = cluster.startServerVM(1, serverProperties1, locator.getPort());
     server2 = cluster.startServerVM(2, serverProperties2, locator.getPort());
     server3 = cluster.startServerVM(3, serverProperties3, locator.getPort());
 
-    subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
-    subscriber2 = new Jedis(LOCAL_HOST, ports[1]);
-    publisher = new Jedis(LOCAL_HOST, ports[2]);
+    subscriber1 = new Jedis(LOCAL_HOST, server1.getPort());
+    subscriber2 = new Jedis(LOCAL_HOST, server2.getPort());
+    publisher = new Jedis(LOCAL_HOST, server3.getPort());
   }
 
   @Before
@@ -132,6 +121,7 @@ public class PubSubDUnitTest {
   public void shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribers()
       throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(2);
+
     MockSubscriber mockSubscriber1 = new MockSubscriber(latch);
     MockSubscriber mockSubscriber2 = new MockSubscriber(latch);
 
@@ -148,6 +138,7 @@ public class PubSubDUnitTest {
     assertThat(result).isEqualTo(2);
 
     server1.stop();
+//    GeodeAwaitility.await().untilAsserted(subscriber1Future::get);
 
     result = publisher.publish(CHANNEL_NAME, "hello again");
     assertThat(result).isEqualTo(1);
@@ -156,18 +147,14 @@ public class PubSubDUnitTest {
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
 
-//    GeodeAwaitility.await().untilAsserted(subscriber1Future::get);
     GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
+
     cluster.startServerVM(1, serverProperties1, locator.getPort());
-    subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
+    subscriber1 = new Jedis(LOCAL_HOST, server1.getPort());
   }
 
   @Test
   public void testSubscribePublishUsingDifferentServers() throws Exception {
-    Jedis subscriber1 = new Jedis("localhost", ports[0]);
-    Jedis subscriber2 = new Jedis("localhost", ports[1]);
-    Jedis publisher = new Jedis("localhost", ports[1]);
-
     CountDownLatch latch = new CountDownLatch(2);
     MockSubscriber mockSubscriber1 = new MockSubscriber(latch);
     MockSubscriber mockSubscriber2 = new MockSubscriber(latch);
@@ -195,9 +182,6 @@ public class PubSubDUnitTest {
   public void testConcurrentPubSub() throws Exception {
     int CLIENT_COUNT = 10;
     int ITERATIONS = 1000;
-
-//    Jedis subscriber1 = new Jedis("localhost", ports[0]);
-//    Jedis subscriber2 = new Jedis("localhost", ports[1]);
 
     CountDownLatch latch = new CountDownLatch(2);
     MockSubscriber mockSubscriber1 = new MockSubscriber(latch);
@@ -239,7 +223,4 @@ public class PubSubDUnitTest {
     assertThat(mockSubscriber1.getReceivedMessages().size()).isEqualTo(CLIENT_COUNT * ITERATIONS);
     assertThat(mockSubscriber2.getReceivedMessages().size()).isEqualTo(CLIENT_COUNT * ITERATIONS);
   }
-
-
-
 }
