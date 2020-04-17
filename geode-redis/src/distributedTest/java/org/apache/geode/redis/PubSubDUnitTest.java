@@ -20,6 +20,7 @@ import static java.lang.String.valueOf;
 import static org.apache.geode.distributed.ConfigurationProperties.MAX_WAIT_TIME_RECONNECT;
 import static org.apache.geode.distributed.ConfigurationProperties.REDIS_BIND_ADDRESS;
 import static org.apache.geode.distributed.ConfigurationProperties.REDIS_PORT;
+import static org.apache.geode.test.awaitility.GeodeAwaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.LinkedList;
@@ -42,6 +43,7 @@ import org.apache.geode.test.awaitility.GeodeAwaitility;
 import org.apache.geode.test.dunit.rules.ClusterStartupRule;
 import org.apache.geode.test.dunit.rules.MemberVM;
 import org.apache.geode.test.junit.rules.ExecutorServiceRule;
+import org.apache.geode.test.junit.rules.GfshCommandRule;
 
 public class PubSubDUnitTest {
 
@@ -49,6 +51,9 @@ public class PubSubDUnitTest {
 
   @ClassRule
   public static ClusterStartupRule cluster = new ClusterStartupRule(4);
+
+  @ClassRule
+  public static GfshCommandRule gfsh = new GfshCommandRule();
 
   @ClassRule
   public static ExecutorServiceRule executor = new ExecutorServiceRule();
@@ -71,7 +76,7 @@ public class PubSubDUnitTest {
   static MemberVM server3;
 
   @BeforeClass
-  public static void beforeClass() {
+  public static void beforeClass() throws Exception {
     ports = AvailablePortHelper.getRandomAvailableTCPPorts(3);
 
     locatorProperties = new Properties();
@@ -98,10 +103,12 @@ public class PubSubDUnitTest {
     subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
     subscriber2 = new Jedis(LOCAL_HOST, ports[1]);
     publisher = new Jedis(LOCAL_HOST, ports[2]);
+
+    gfsh.connectAndVerify(locator);
   }
 
   @Before
-  public void testSetup() {
+  public void testSetup() throws Exception {
     subscriber1.flushAll();
     subscriber2.flushAll();
   }
@@ -138,7 +145,56 @@ public class PubSubDUnitTest {
     assertThat(result).isEqualTo(2);
 
     server1.stop();
-//    GeodeAwaitility.await().untilAsserted(subscriber1Future::get);
+
+    await()
+        .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
+            .statusIsSuccess()
+            .hasTableSection()
+            .hasColumn("Name")
+            .containsOnly("locator-0", "server-2", "server-3"));
+
+    result = publisher.publish(CHANNEL_NAME, "hello again");
+    assertThat(result).isEqualTo(1);
+    assertThat(mockSubscriber1.getReceivedMessages()).containsExactlyInAnyOrder("hello");
+    assertThat(mockSubscriber2.getReceivedMessages()).containsExactlyInAnyOrder("hello",
+        "hello again");
+
+    mockSubscriber2.unsubscribe(CHANNEL_NAME);
+
+    GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
+
+    cluster.startServerVM(1, serverProperties1, locator.getPort());
+    subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
+  }
+
+  @Test
+  public void shouldContinueToFunction_whenOneSubscriberShutsDownAbruptly_givenTwoSubscribers()
+      throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(2);
+
+    MockSubscriber mockSubscriber1 = new MockSubscriber(latch);
+    MockSubscriber mockSubscriber2 = new MockSubscriber(latch);
+
+    Future<Void> subscriber1Future = executor.submit(
+        () -> subscriber1.subscribe(mockSubscriber1, CHANNEL_NAME));
+    Future<Void> subscriber2Future = executor.submit(
+        () -> subscriber2.subscribe(mockSubscriber2, CHANNEL_NAME));
+
+    assertThat(latch.await(30, TimeUnit.SECONDS))
+        .as("channel subscription was not received")
+        .isTrue();
+
+    Long result = publisher.publish(CHANNEL_NAME, "hello");
+    assertThat(result).isEqualTo(2);
+
+    cluster.crashVM(1);
+
+    await()
+        .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
+            .statusIsSuccess()
+            .hasTableSection()
+            .hasColumn("Name")
+            .containsOnly("locator-0", "server-2", "server-3"));
 
     result = publisher.publish(CHANNEL_NAME, "hello again");
     assertThat(result).isEqualTo(1);
