@@ -23,6 +23,7 @@ import static org.apache.geode.distributed.ConfigurationProperties.REDIS_PORT;
 import static org.apache.geode.test.awaitility.GeodeAwaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -50,7 +51,7 @@ public class PubSubDUnitTest {
   public static final String CHANNEL_NAME = "salutations";
 
   @ClassRule
-  public static ClusterStartupRule cluster = new ClusterStartupRule(4);
+  public static ClusterStartupRule cluster = new ClusterStartupRule(5);
 
   @ClassRule
   public static GfshCommandRule gfsh = new GfshCommandRule();
@@ -63,26 +64,30 @@ public class PubSubDUnitTest {
   static final String LOCAL_HOST = "127.0.0.1";
   static Jedis subscriber1;
   static Jedis subscriber2;
-  static Jedis publisher;
+  static Jedis publisher1;
+  static Jedis publisher2;
 
   static Properties locatorProperties;
   static Properties serverProperties1;
   static Properties serverProperties2;
   static Properties serverProperties3;
+  static Properties serverProperties4;
 
   static MemberVM locator;
   static MemberVM server1;
   static MemberVM server2;
   static MemberVM server3;
+  static MemberVM server4;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    ports = AvailablePortHelper.getRandomAvailableTCPPorts(3);
+    ports = AvailablePortHelper.getRandomAvailableTCPPorts(4);
 
     locatorProperties = new Properties();
     serverProperties1 = new Properties();
     serverProperties2 = new Properties();
     serverProperties3 = new Properties();
+    serverProperties4 = new Properties();
 
     locatorProperties.setProperty(MAX_WAIT_TIME_RECONNECT, "15000");
 
@@ -95,14 +100,19 @@ public class PubSubDUnitTest {
     serverProperties3.setProperty(REDIS_PORT, valueOf(ports[2]));
     serverProperties3.setProperty(REDIS_BIND_ADDRESS, LOCAL_HOST);
 
+    serverProperties4.setProperty(REDIS_PORT, valueOf(ports[3]));
+    serverProperties4.setProperty(REDIS_BIND_ADDRESS, LOCAL_HOST);
+
     locator = cluster.startLocatorVM(0, locatorProperties);
     server1 = cluster.startServerVM(1, serverProperties1, locator.getPort());
     server2 = cluster.startServerVM(2, serverProperties2, locator.getPort());
     server3 = cluster.startServerVM(3, serverProperties3, locator.getPort());
+    server4 = cluster.startServerVM(4, serverProperties4, locator.getPort());
 
     subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
     subscriber2 = new Jedis(LOCAL_HOST, ports[1]);
-    publisher = new Jedis(LOCAL_HOST, ports[2]);
+    publisher1 = new Jedis(LOCAL_HOST, ports[2]);
+    publisher2 = new Jedis(LOCAL_HOST, ports[3]);
 
     gfsh.connectAndVerify(locator);
   }
@@ -117,15 +127,17 @@ public class PubSubDUnitTest {
   public static void tearDown() {
     subscriber1.disconnect();
     subscriber2.disconnect();
-    publisher.disconnect();
+    publisher1.disconnect();
+    publisher2.disconnect();
 
     server1.stop();
     server2.stop();
     server3.stop();
+    server4.stop();
   }
 
   @Test
-  public void shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribers()
+  public void shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribersOnePublisher()
       throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(2);
 
@@ -141,23 +153,135 @@ public class PubSubDUnitTest {
         .as("channel subscription was not received")
         .isTrue();
 
-    Long result = publisher.publish(CHANNEL_NAME, "hello");
+
+    Long result = publisher1.publish(CHANNEL_NAME, "hello");
     assertThat(result).isEqualTo(2);
 
-    server1.stop();
+    List<Runnable> publishRunnables = new ArrayList<>();
 
-    await()
-        .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
-            .statusIsSuccess()
-            .hasTableSection()
-            .hasColumn("Name")
-            .containsOnly("locator-0", "server-2", "server-3"));
+    for(int i=0; i < 100; i++) {
+      publishRunnables.add( () -> {
+        publisher1.publish(CHANNEL_NAME, "hello again");
+      });
+    }
 
-    result = publisher.publish(CHANNEL_NAME, "hello again");
-    assertThat(result).isEqualTo(1);
-    assertThat(mockSubscriber1.getReceivedMessages()).containsExactlyInAnyOrder("hello");
-    assertThat(mockSubscriber2.getReceivedMessages()).containsExactlyInAnyOrder("hello",
-        "hello again");
+    Runnable stopServerRunnable = () -> server1.stop();
+
+    List<Thread> publisherThreads = new ArrayList<>();
+
+    publishRunnables.stream().forEach(r -> {
+      Thread publisherThread = new Thread(r);
+      publisherThread.start();
+      publisherThreads.add(publisherThread);
+    });
+
+    Thread stopServerThread = new Thread(stopServerRunnable);
+
+    stopServerThread.start();
+
+    stopServerThread.join();
+    for (Thread publisherThread : publisherThreads) {
+      publisherThread.join();
+    }
+
+//    result = publisher1.publish(CHANNEL_NAME, "hello again");
+//    server1.stop();
+
+//    await()
+//        .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
+//            .statusIsSuccess()
+//            .hasTableSection()
+//            .hasColumn("Name")
+//            .containsOnly("locator-0", "server-2", "server-3"));
+
+//    assertThat(result).isEqualTo(1);
+//    assertThat(mockSubscriber1.getReceivedMessages()).containsExactlyInAnyOrder("hello");
+//    assertThat(mockSubscriber2.getReceivedMessages()).containsExactlyInAnyOrder("hello",
+//        "hello again");
+
+    mockSubscriber2.unsubscribe(CHANNEL_NAME);
+    GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
+
+    cluster.startServerVM(1, serverProperties1, locator.getPort());
+    subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
+  }
+
+  @Test
+  public void shouldContinueToFunction_whenOneSubscriberShutsDownAbruptly_givenTwoSubscribersOnePublisher()
+      throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(2);
+
+    MockSubscriber mockSubscriber1 = new MockSubscriber(latch);
+    MockSubscriber mockSubscriber2 = new MockSubscriber(latch);
+
+    Future<Void> subscriber1Future = executor.submit(
+        () -> subscriber1.subscribe(mockSubscriber1, CHANNEL_NAME));
+    Future<Void> subscriber2Future = executor.submit(
+        () -> subscriber2.subscribe(mockSubscriber2, CHANNEL_NAME));
+
+    assertThat(latch.await(30, TimeUnit.SECONDS))
+        .as("channel subscription was not received")
+        .isTrue();
+
+    Long result = publisher1.publish(CHANNEL_NAME, "hello");
+    assertThat(result).isEqualTo(2);
+
+    List<Runnable> publishRunnables = new ArrayList<>();
+
+    for(int i=0; i < 100; i++) {
+      publishRunnables.add( () -> {
+        publisher1.publish(CHANNEL_NAME, "hello again");
+      });
+    }
+
+    Runnable stopServerRunnable = () -> server1.stop();
+
+    List<Thread> publisherThreads = new ArrayList<>();
+
+    publishRunnables.stream().forEach(r -> {
+      Thread publisherThread = new Thread(r);
+      publisherThread.start();
+      publisherThreads.add(publisherThread);
+    });
+
+    Thread stopServerThread = new Thread(stopServerRunnable);
+
+    stopServerThread.start();
+
+    stopServerThread.join();
+    for (Thread publisherThread : publisherThreads) {
+      publisherThread.join();
+    }
+
+//    Runnable publisherRunnable = () -> {
+//      for(int i=0; i < 10; i++) {
+//        publisher1.publish(CHANNEL_NAME, "hello again");
+//      }
+//    };
+//    Runnable stopServerRunnable = () -> cluster.crashVM(1);
+//
+//    Thread publisherThread = new Thread(publisherRunnable);
+//    Thread stopServerThread = new Thread(stopServerRunnable);
+//
+//    stopServerThread.start();
+//    publisherThread.start();
+//
+//    stopServerThread.join();
+//    publisherThread.join();
+
+//    await()
+//        .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
+//            .statusIsSuccess()
+//            .hasTableSection()
+//            .hasColumn("Name")
+//            .containsOnly("locator-0", "server-2", "server-3", "server-4"));
+//    result = publisher1.publish(CHANNEL_NAME, "bonjour");
+
+
+//    assertThat(result).isEqualTo(1);
+//    assertThat(mockSubscriber1.getReceivedMessages()).containsExactlyInAnyOrder("hello");
+//    assertThat(mockSubscriber2.getReceivedMessages()).containsExactlyInAnyOrder("hello",
+//        "hello again");
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
 
@@ -168,7 +292,7 @@ public class PubSubDUnitTest {
   }
 
   @Test
-  public void shouldContinueToFunction_whenOneSubscriberShutsDownAbruptly_givenTwoSubscribers()
+  public void shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribersTwoPublishers()
       throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(2);
 
@@ -184,10 +308,11 @@ public class PubSubDUnitTest {
         .as("channel subscription was not received")
         .isTrue();
 
-    Long result = publisher.publish(CHANNEL_NAME, "hello");
-    assertThat(result).isEqualTo(2);
+    Long resultPublisher1 = publisher1.publish(CHANNEL_NAME, "hello");
+    Long resultPublisher2 = publisher2.publish(CHANNEL_NAME, "hello");
+    assertThat(resultPublisher1).isEqualTo(2);
 
-    cluster.crashVM(1);
+    server1.stop();
 
     await()
         .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
@@ -196,8 +321,8 @@ public class PubSubDUnitTest {
             .hasColumn("Name")
             .containsOnly("locator-0", "server-2", "server-3"));
 
-    result = publisher.publish(CHANNEL_NAME, "hello again");
-    assertThat(result).isEqualTo(1);
+    resultPublisher1 = publisher1.publish(CHANNEL_NAME, "hello again");
+    assertThat(resultPublisher1).isEqualTo(1);
     assertThat(mockSubscriber1.getReceivedMessages()).containsExactlyInAnyOrder("hello");
     assertThat(mockSubscriber2.getReceivedMessages()).containsExactlyInAnyOrder("hello",
         "hello again");
@@ -225,7 +350,7 @@ public class PubSubDUnitTest {
         .as("channel subscription was not received")
         .isTrue();
 
-    Long result = publisher.publish(CHANNEL_NAME, "hello");
+    Long result = publisher1.publish(CHANNEL_NAME, "hello");
     assertThat(result).isEqualTo(2);
 
     mockSubscriber1.unsubscribe(CHANNEL_NAME);
