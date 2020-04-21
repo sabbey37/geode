@@ -41,6 +41,7 @@ import redis.clients.jedis.Jedis;
 
 import org.apache.geode.internal.AvailablePortHelper;
 import org.apache.geode.test.awaitility.GeodeAwaitility;
+import org.apache.geode.test.dunit.IgnoredException;
 import org.apache.geode.test.dunit.rules.ClusterStartupRule;
 import org.apache.geode.test.dunit.rules.MemberVM;
 import org.apache.geode.test.junit.rules.ExecutorServiceRule;
@@ -139,6 +140,7 @@ public class PubSubDUnitTest {
   @Test
   public void shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribersOnePublisher()
       throws InterruptedException {
+    IgnoredException.addIgnoredException("SocketTimeoutException");
     CountDownLatch latch = new CountDownLatch(2);
 
     MockSubscriber mockSubscriber1 = new MockSubscriber(latch);
@@ -161,7 +163,9 @@ public class PubSubDUnitTest {
 
     for(int i=0; i < 100; i++) {
       publishRunnables.add( () -> {
-        publisher1.publish(CHANNEL_NAME, "hello again");
+        for(int j=0; j<10; j++) {
+          publisher1.publish(CHANNEL_NAME, "hello again" + j);
+        }
       });
     }
 
