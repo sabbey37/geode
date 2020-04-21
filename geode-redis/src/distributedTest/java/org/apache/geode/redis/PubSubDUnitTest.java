@@ -23,7 +23,6 @@ import static org.apache.geode.distributed.ConfigurationProperties.REDIS_PORT;
 import static org.apache.geode.test.awaitility.GeodeAwaitility.await;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -36,13 +35,11 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import redis.clients.jedis.Jedis;
 
 import org.apache.geode.internal.AvailablePortHelper;
 import org.apache.geode.test.awaitility.GeodeAwaitility;
-import org.apache.geode.test.dunit.IgnoredException;
 import org.apache.geode.test.dunit.rules.ClusterStartupRule;
 import org.apache.geode.test.dunit.rules.MemberVM;
 import org.apache.geode.test.junit.rules.ExecutorServiceRule;
@@ -158,29 +155,14 @@ public class PubSubDUnitTest {
     Long result = publisher1.publish(CHANNEL_NAME, "hello");
     assertThat(result).isEqualTo(2);
 
-    Thread publisherThread = new Thread(() ->
-        publisher1.publish(CHANNEL_NAME, "hello again"));
-
-    Runnable stopServerRunnable = () -> server1.stop();
-    Thread stopServerThread = new Thread(stopServerRunnable);
-
-    stopServerThread.start();
-    publisherThread.start();
-
-    stopServerThread.join();
-    publisherThread.join();
+    server1.stop();
+    publisher1.publish(CHANNEL_NAME, "hello again");
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
     GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
 
-    cluster.startServerVM(1, serverProperties1, locator.getPort());
-    await()
-        .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
-            .statusIsSuccess()
-            .hasTableSection()
-            .hasColumn("Name")
-            .containsOnly("locator-0", "server-1", "server-2", "server-3", "server-4"));
-    subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
+    restartServerVM1();
+    reconnectSubscriber1();
   }
 
   @Test
@@ -205,19 +187,18 @@ public class PubSubDUnitTest {
     Long result = publisher1.publish(CHANNEL_NAME, "hello");
     assertThat(result).isEqualTo(2);
 
-    Thread publisherThread = new Thread(() -> publisher1.publish(CHANNEL_NAME, "hello again"));
-    Thread crashServerThread = new Thread(() -> cluster.crashVM(1));
-
-    crashServerThread.start();
-    publisherThread.start();
-
-    crashServerThread.join();
-    publisherThread.join();
+    cluster.crashVM(1);
+    publisher1.publish(CHANNEL_NAME, "hello again");
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
 
     GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
 
+    restartServerVM1();
+    reconnectSubscriber1();
+  }
+
+  private void restartServerVM1() {
     cluster.startServerVM(1, serverProperties1, locator.getPort());
     await()
         .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
@@ -225,6 +206,9 @@ public class PubSubDUnitTest {
             .hasTableSection()
             .hasColumn("Name")
             .containsOnly("locator-0", "server-1", "server-2", "server-3", "server-4"));
+  }
+
+  private void reconnectSubscriber1() {
     subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
   }
 
@@ -261,15 +245,8 @@ public class PubSubDUnitTest {
 
     GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
 
-    cluster.startServerVM(1, serverProperties1, locator.getPort());
-    await()
-        .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
-            .statusIsSuccess()
-            .hasTableSection()
-            .hasColumn("Name")
-            .containsOnly("locator-0", "server-1", "server-2", "server-3", "server-4"));
-
-    subscriber1 = new Jedis(LOCAL_HOST, ports[0]);
+    restartServerVM1();
+    reconnectSubscriber1();
   }
 
   @Test
