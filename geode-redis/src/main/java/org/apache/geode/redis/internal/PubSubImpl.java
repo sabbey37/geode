@@ -114,21 +114,15 @@ public class PubSubImpl implements PubSub {
         .stream()
         .map(subscription -> subscription.publishMessage(channel, message))
         .collect(Collectors.partitioningBy(PublishResult::isSuccessful));
-    System.out.println("FALSIES:        " + results.get(false).size());
     prune(results.get(false));
-//    System.out.println("TTTTTTTTTTTTTTTTTRUE THINGS: " + results.get(true));
     return results.get(true).size();
   }
 
   private void prune(List<PublishResult> failedSubscriptions) {
     failedSubscriptions.forEach(publishResult -> {
       Client client = publishResult.getClient();
-      System.out.println("DEAD??    " + client.isDead());
-      System.out.println("SUBBIES:    " + subscriptions.size());
-//      System.out.println("CLIENTTTTTTTTTTTTTTTTT: " + publishResult.getClient());
       if (client.isDead()) {
         subscriptions.remove(client);
-        System.out.println("********************* REMOVED THE CLIENT!           " + client + "  " + subscriptions.size());
       }
     });
   }

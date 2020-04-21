@@ -158,31 +158,17 @@ public class PubSubDUnitTest {
     Long result = publisher1.publish(CHANNEL_NAME, "hello");
     assertThat(result).isEqualTo(2);
 
-    List<Runnable> publishRunnables = new ArrayList<>();
-
-    for (int i = 0; i < 100; i++) {
-      publishRunnables.add(() -> {
-        publisher1.publish(CHANNEL_NAME, "hello again");
-      });
-    }
+    Thread publisherThread = new Thread(() ->
+        publisher1.publish(CHANNEL_NAME, "hello again"));
 
     Runnable stopServerRunnable = () -> server1.stop();
-    List<Thread> publisherThreads = new ArrayList<>();
-
-    publishRunnables.stream().forEach(r -> {
-      Thread publisherThread = new Thread(r);
-      publisherThread.start();
-      publisherThreads.add(publisherThread);
-    });
-
     Thread stopServerThread = new Thread(stopServerRunnable);
 
     stopServerThread.start();
+    publisherThread.start();
 
     stopServerThread.join();
-    for (Thread publisherThread : publisherThreads) {
-      publisherThread.join();
-    }
+    publisherThread.join();
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
     GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
@@ -198,7 +184,9 @@ public class PubSubDUnitTest {
   }
 
   @Test
-  public void shouldContinueToFunction_whenOneSubscriberShutsDownAbruptly_givenTwoSubscribersOnePublisher()
+  public void
+  shouldContinueToFunction_whenOneSubscriberShutsDownAbruptly_givenTwoSubscribersOnePublisher
+      ()
       throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(2);
 
@@ -217,32 +205,14 @@ public class PubSubDUnitTest {
     Long result = publisher1.publish(CHANNEL_NAME, "hello");
     assertThat(result).isEqualTo(2);
 
-    List<Runnable> publishRunnables = new ArrayList<>();
+    Thread publisherThread = new Thread(() -> publisher1.publish(CHANNEL_NAME, "hello again"));
+    Thread crashServerThread = new Thread(() -> cluster.crashVM(1));
 
-    for (int i = 0; i < 100; i++) {
-      publishRunnables.add(() -> {
-        publisher1.publish(CHANNEL_NAME, "hello again");
-      });
-    }
+    crashServerThread.start();
+    publisherThread.start();
 
-    Runnable stopServerRunnable = () -> server1.stop();
-
-    List<Thread> publisherThreads = new ArrayList<>();
-
-    publishRunnables.stream().forEach(r -> {
-      Thread publisherThread = new Thread(r);
-      publisherThread.start();
-      publisherThreads.add(publisherThread);
-    });
-
-    Thread stopServerThread = new Thread(stopServerRunnable);
-
-    stopServerThread.start();
-
-    stopServerThread.join();
-    for (Thread publisherThread : publisherThreads) {
-      publisherThread.join();
-    }
+    crashServerThread.join();
+    publisherThread.join();
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
 
@@ -259,7 +229,9 @@ public class PubSubDUnitTest {
   }
 
   @Test
-  public void shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribersTwoPublishers()
+  public void
+  shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribersTwoPublishers
+      ()
       throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(2);
 
@@ -282,14 +254,8 @@ public class PubSubDUnitTest {
 
     server1.stop();
 
-    await()
-        .untilAsserted(() -> gfsh.executeAndAssertThat("list members")
-            .statusIsSuccess()
-            .hasTableSection()
-            .hasColumn("Name")
-            .containsOnly("locator-0", "server-2", "server-3", "server-4"));
-
-    resultPublisher1 = publisher1.publish(CHANNEL_NAME, "hello again");
+    publisher1.publish(CHANNEL_NAME, "hello again");
+    publisher2.publish(CHANNEL_NAME, "hello again");
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
 
