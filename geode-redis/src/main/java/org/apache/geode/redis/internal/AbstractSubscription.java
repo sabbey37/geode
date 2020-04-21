@@ -18,6 +18,8 @@ package org.apache.geode.redis.internal;
 
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -81,7 +83,7 @@ public abstract class AbstractSubscription implements Subscription {
     ChannelFuture channelFuture = context.writeToChannel(messageByteBuffer);
 
     try {
-      channelFuture.get();
+      channelFuture.get(3000, TimeUnit.MILLISECONDS);
     } catch (ExecutionException e) {
       if (e.getCause() instanceof ClosedChannelException) {
         logger.warn("Unable to write to channel: {}", e.getMessage());
@@ -91,6 +93,9 @@ public abstract class AbstractSubscription implements Subscription {
       return false;
     } catch (InterruptedException e) {
       logger.warn("Unable to write to channel", e);
+      return false;
+    } catch (TimeoutException e) {
+      logger.warn("Thread timed out waiting to write to channel", e);
       return false;
     }
 

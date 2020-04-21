@@ -156,7 +156,8 @@ public class PubSubDUnitTest {
     assertThat(result).isEqualTo(2);
 
     server1.stop();
-    publisher1.publish(CHANNEL_NAME, "hello again");
+    Long resultFromSecondMessage = publisher1.publish(CHANNEL_NAME, "hello again");
+    assertThat(resultFromSecondMessage).isEqualTo(1);
 
     mockSubscriber2.unsubscribe(CHANNEL_NAME);
     GeodeAwaitility.await().untilAsserted(subscriber2Future::get);
