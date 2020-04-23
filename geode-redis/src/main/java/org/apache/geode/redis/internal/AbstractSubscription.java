@@ -82,23 +82,28 @@ public abstract class AbstractSubscription implements Subscription {
   private boolean writeToChannelSynchronously(ByteBuf messageByteBuffer) {
     ChannelFuture channelFuture = context.writeToChannel(messageByteBuffer);
 
-    try {
-      channelFuture.get(/*3000, TimeUnit.MILLISECONDS*/);
-    } catch (ExecutionException e) {
-      if (e.getCause() instanceof ClosedChannelException) {
-        logger.warn("Unable to write to channel: {}", e.getMessage());
-      } else {
+    while(true) {
+      try {
+        channelFuture.get(3000, TimeUnit.MILLISECONDS);
+        break;
+      } catch (ExecutionException e) {
+        if (e.getCause() instanceof ClosedChannelException) {
+          logger.warn("Unable to write to channel: {}", e.getMessage());
+        } else {
+          logger.warn("Unable to write to channel", e);
+        }
+        return false;
+      } catch (InterruptedException e) {
         logger.warn("Unable to write to channel", e);
+        return false;
+      } catch (TimeoutException e) {
+        logger.warn("Thread timed out waiting to write to channel", e);
+        if(channelFuture.channel().isWritable() && channelFuture.channel().isOpen() && channelFuture.channel().isActive()){
+          continue;
+        }
+        return false;
       }
-      return false;
-    } catch (InterruptedException e) {
-      logger.warn("Unable to write to channel", e);
-      return false;
-    } /*catch (TimeoutException e) {
-      logger.warn("Thread timed out waiting to write to channel", e);
-      return false;
-    }*/
-
+    }
     return channelFuture.cause() == null;
   }
 }

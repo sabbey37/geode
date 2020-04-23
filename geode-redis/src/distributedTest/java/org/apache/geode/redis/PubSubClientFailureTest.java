@@ -109,7 +109,8 @@ public class PubSubClientFailureTest {
 
     @Override
     public void run() {
-      for(int i=0; i<20; i++) {
+      ArrayList<Jedis> jedisList  = new ArrayList<>();
+      for(int i=0; i<1; i++) {
         Jedis jedis = new Jedis(hostname, port, 10000000);
         jedis.subscribe(new JedisPubSub() {
           @Override
@@ -117,12 +118,14 @@ public class PubSubClientFailureTest {
             super.onMessage(channel, message);
           }
         }, "hello");
+        jedisList.add(jedis);
       }
-
-      try {
-        Thread.sleep(5000000);
-      } catch (InterruptedException e) {
-        e.printStackTrace();
+      while(true){
+        try {
+          Thread.sleep(100);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
       }
     }
   }
@@ -156,6 +159,11 @@ public class PubSubClientFailureTest {
 
   @Test
   public void recreateStuckThreadIssue() throws InterruptedException {
+    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
+    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
+    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
+    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
+    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
     subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
 
     GeodeAwaitility.await().until(() -> (Long) publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0])) > 5L);
