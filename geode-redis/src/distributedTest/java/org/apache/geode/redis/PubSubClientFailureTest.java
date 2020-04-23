@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
 import org.junit.AfterClass;
@@ -84,16 +85,22 @@ public class PubSubClientFailureTest {
         message =
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec hendrerit luctus enim, quis suscipit massa lobortis a. Vestibulum ullamcorper nec felis sit amet consequat. Praesent interdum erat ut turpis scelerisque consequat. Etiam ornare, tortor non accumsan blandit, neque nibh ullamcorper diam, vitae blandit leo erat in metus. Phasellus feugiat felis erat, sed pretium justo ullamcorper vel. Aliquam ultrices tellus elit, nec tincidunt libero consectetur sit amet. Cras a quam pulvinar, finibus orci sed, pharetra ipsum. Nam nibh dui, mollis vel rutrum eu, pretium ut eros. Donec luctus odio neque, ut molestie purus posuere quis.\n"
             + "Morbi rutrum lectus a dignissim consectetur. Vivamus luctus, est vel luctus venenatis, sapien mi elementum ipsum, sed scelerisque metus enim vitae nisi. In pulvinar porta odio, ut lobortis libero semper vel. Donec elementum placerat nisl vestibulum lobortis. Nam sit amet sodales lacus. Vivamus pellentesque consequat velit. Integer non lacus eget dolor erat curae.";
+    private final long publishCount;
 
-    public ConcurrentPublishOperation(String hostname, int port) {
+    public ConcurrentPublishOperation(String hostname, int port, long publishCount) {
       this.hostname = hostname;
       this.port = port;
+      this.publishCount = publishCount;
     }
 
     @Override
     public Object call() {
       Jedis jedis = new Jedis(hostname, port, 10000000);
-      return jedis.publish("hello", message);
+      long subscribersPublishedTo = 0;
+      for (int i = 0; i < publishCount; i++) {
+        subscribersPublishedTo += jedis.publish("hello", message.substring(0, new Random().nextInt(message.length())));
+      }
+      return subscribersPublishedTo;
     }
   }
 
@@ -109,8 +116,8 @@ public class PubSubClientFailureTest {
 
     @Override
     public void run() {
-      ArrayList<Jedis> jedisList  = new ArrayList<>();
-      for(int i=0; i<1; i++) {
+      ArrayList<Jedis> jedisList = new ArrayList<>();
+      for (int i = 0; i < 1; i++) {
         Jedis jedis = new Jedis(hostname, port, 10000000);
         jedis.subscribe(new JedisPubSub() {
           @Override
@@ -120,7 +127,7 @@ public class PubSubClientFailureTest {
         }, "hello");
         jedisList.add(jedis);
       }
-      while(true){
+      while (true) {
         try {
           Thread.sleep(100);
         } catch (InterruptedException e) {
@@ -159,32 +166,28 @@ public class PubSubClientFailureTest {
 
   @Test
   public void recreateStuckThreadIssue() throws InterruptedException {
-    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
-    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
-    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
-    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
-    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
-    subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
+    for (int i = 0; i < 10; i++) {
+      subsciberVM.invokeAsync(new ConcurrenSubscriptionOperation(LOCAL_HOST, ports[0]));
+    }
 
-    GeodeAwaitility.await().until(() -> (Long) publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0])) > 5L);
+    GeodeAwaitility.await().until(
+        () -> (Long) publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 1))
+            > 5L);
 
     Thread publisherThread = new Thread(() -> {
-      for (int i = 0; i < 50; i++) {
-        publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0]));
-      }
+      publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 50));
     });
 
-//    Thread publisherThread2 = new Thread(() -> {
-//      for (int i = 0; i < 5; i++) {
-//        publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0]));
-//      }
-//    });
+    Thread publisherThread2 = new Thread(() -> {
+      publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 100));
+    });
 
     publisherThread.start();
-//    publisherThread2.start();
-//    publisherThread2.join();
-//    cluster.crashVM(INDEX_OF_SUBSCRIBER_VM);
+    publisherThread2.start();
 
     publisherThread.join();
+    cluster.crashVM(INDEX_OF_SUBSCRIBER_VM);
+
+    publisherThread2.join();
   }
 }

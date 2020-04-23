@@ -22,7 +22,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelMetadata;
 import org.apache.logging.log4j.Logger;
 
 import org.apache.geode.logging.internal.log4j.api.LogService;
@@ -98,6 +100,8 @@ public abstract class AbstractSubscription implements Subscription {
         return false;
       } catch (TimeoutException e) {
         logger.warn("Thread timed out waiting to write to channel", e);
+        Channel channel = channelFuture.channel();
+
         if(channelFuture.channel().isWritable() && channelFuture.channel().isOpen() && channelFuture.channel().isActive()){
           continue;
         }
