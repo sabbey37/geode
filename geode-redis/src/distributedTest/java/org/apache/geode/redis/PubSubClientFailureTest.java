@@ -117,7 +117,7 @@ public class PubSubClientFailureTest {
     @Override
     public void run() {
       ArrayList<Jedis> jedisList = new ArrayList<>();
-      for (int i = 0; i < 1; i++) {
+      for (int i = 0; i < 10; i++) {
         Jedis jedis = new Jedis(hostname, port, 10000000);
         jedis.subscribe(new JedisPubSub() {
           @Override
@@ -177,15 +177,27 @@ public class PubSubClientFailureTest {
     Thread publisherThread = new Thread(() -> {
       publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 50));
     });
+    new Thread(() -> {
+      publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 50));
+    }).start();
+
+    new Thread(() -> {
+      publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 50));
+    }).start();
+
+    new Thread(() -> {
+      publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 50));
+    }).start();
 
     Thread publisherThread2 = new Thread(() -> {
       publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 100));
     });
 
     publisherThread.start();
-    publisherThread2.start();
 
     publisherThread.join();
+    publisherThread2.start();
+    Thread.sleep(800);
     cluster.crashVM(INDEX_OF_SUBSCRIBER_VM);
 
     publisherThread2.join();

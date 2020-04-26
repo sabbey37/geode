@@ -84,9 +84,9 @@ public abstract class AbstractSubscription implements Subscription {
   private boolean writeToChannelSynchronously(ByteBuf messageByteBuffer) {
     ChannelFuture channelFuture = context.writeToChannel(messageByteBuffer);
 
-    while(true) {
+    for(int i = 0; i < 10; i++) {
       try {
-        channelFuture.get(3000, TimeUnit.MILLISECONDS);
+        channelFuture.get(1, TimeUnit.SECONDS);
         break;
       } catch (ExecutionException e) {
         if (e.getCause() instanceof ClosedChannelException) {
@@ -101,8 +101,7 @@ public abstract class AbstractSubscription implements Subscription {
       } catch (TimeoutException e) {
         logger.warn("Thread timed out waiting to write to channel", e);
         Channel channel = channelFuture.channel();
-
-        if(channelFuture.channel().isWritable() && channelFuture.channel().isOpen() && channelFuture.channel().isActive()){
+        if(channel.isActive()){
           continue;
         }
         return false;

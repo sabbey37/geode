@@ -610,10 +610,13 @@ public class GeodeRedisServer {
                 new ExecutionHandlerContext(ch, cache, regionCache, GeodeRedisServer.this, pwdB,
                     keyRegistrar, pubSub, hashLockService));
           }
-        }).option(ChannelOption.SO_REUSEADDR, true).option(ChannelOption.SO_RCVBUF, getBufferSize())
+        }).option(ChannelOption.SO_REUSEADDR, true)
+        .option(ChannelOption.SO_RCVBUF, getBufferSize())
         .childOption(ChannelOption.SO_KEEPALIVE, true)
         .childOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, GeodeRedisServer.connectTimeoutMillis)
-        .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+        .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+
+    ;
 
     // Bind and start to accept incoming connections.
     ChannelFuture f = b.bind(new InetSocketAddress(getBindAddress(), serverPort)).sync();
