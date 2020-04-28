@@ -20,14 +20,10 @@ import static java.lang.String.valueOf;
 import static org.apache.geode.distributed.ConfigurationProperties.MAX_WAIT_TIME_RECONNECT;
 import static org.apache.geode.distributed.ConfigurationProperties.REDIS_BIND_ADDRESS;
 import static org.apache.geode.distributed.ConfigurationProperties.REDIS_PORT;
-import static org.apache.geode.test.awaitility.GeodeAwaitility.await;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.CountDownLatch;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -40,7 +36,6 @@ import org.apache.geode.internal.AvailablePortHelper;
 import org.apache.geode.test.awaitility.GeodeAwaitility;
 import org.apache.geode.test.dunit.SerializableCallable;
 import org.apache.geode.test.dunit.SerializableRunnable;
-import org.apache.geode.test.dunit.VM;
 import org.apache.geode.test.dunit.rules.ClusterStartupRule;
 import org.apache.geode.test.dunit.rules.MemberVM;
 import org.apache.geode.test.junit.rules.ExecutorServiceRule;
@@ -81,8 +76,7 @@ public class PubSubClientFailureTest {
 
     private final String hostname;
     private final int port;
-    private final String
-        message =
+    private final String message =
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec hendrerit luctus enim, quis suscipit massa lobortis a. Vestibulum ullamcorper nec felis sit amet consequat. Praesent interdum erat ut turpis scelerisque consequat. Etiam ornare, tortor non accumsan blandit, neque nibh ullamcorper diam, vitae blandit leo erat in metus. Phasellus feugiat felis erat, sed pretium justo ullamcorper vel. Aliquam ultrices tellus elit, nec tincidunt libero consectetur sit amet. Cras a quam pulvinar, finibus orci sed, pharetra ipsum. Nam nibh dui, mollis vel rutrum eu, pretium ut eros. Donec luctus odio neque, ut molestie purus posuere quis.\n"
             + "Morbi rutrum lectus a dignissim consectetur. Vivamus luctus, est vel luctus venenatis, sapien mi elementum ipsum, sed scelerisque metus enim vitae nisi. In pulvinar porta odio, ut lobortis libero semper vel. Donec elementum placerat nisl vestibulum lobortis. Nam sit amet sodales lacus. Vivamus pellentesque consequat velit. Integer non lacus eget dolor erat curae.";
     private final long publishCount;
@@ -98,7 +92,8 @@ public class PubSubClientFailureTest {
       Jedis jedis = new Jedis(hostname, port, 10000000);
       long subscribersPublishedTo = 0;
       for (int i = 0; i < publishCount; i++) {
-        subscribersPublishedTo += jedis.publish("hello", message.substring(0, new Random().nextInt(message.length())));
+        subscribersPublishedTo +=
+            jedis.publish("hello", message.substring(0, new Random().nextInt(message.length())));
       }
       return subscribersPublishedTo;
     }
@@ -171,8 +166,8 @@ public class PubSubClientFailureTest {
     }
 
     GeodeAwaitility.await().until(
-        () -> (Long) publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 1))
-            > 5L);
+        () -> (Long) publisherVM
+            .invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 1)) > 5L);
 
     Thread publisherThread = new Thread(() -> {
       publisherVM.invoke(new ConcurrentPublishOperation(LOCAL_HOST, ports[0], 50));

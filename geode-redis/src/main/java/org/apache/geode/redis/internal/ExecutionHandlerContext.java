@@ -176,6 +176,7 @@ public class ExecutionHandlerContext extends ChannelInboundHandlerAdapter {
         && cause.getCause() instanceof RedisCommandParserException) {
       response =
           Coder.getErrorResponse(this.byteBufAllocator, RedisConstants.PARSING_EXCEPTION_MESSAGE);
+
     } else if (cause instanceof RegionCreationException) {
       this.logger.error(cause);
       response =

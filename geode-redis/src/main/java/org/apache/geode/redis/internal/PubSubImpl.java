@@ -17,11 +17,6 @@
 package org.apache.geode.redis.internal;
 
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
 
 import org.apache.geode.annotations.VisibleForTesting;
 import org.apache.geode.cache.execute.Function;
@@ -118,58 +113,15 @@ public class PubSubImpl implements PubSub {
       return 0;
     }
 
-    PublishResultCollector
-        publishResultCollector =
-        new PublishResultCollector(foundSubscriptions.size());
+    PublishResultCollector publishResultCollector =
+        new PublishResultCollector(foundSubscriptions.size(), subscriptions);
 
     foundSubscriptions
         .stream()
-        .forEach(subscription -> subscription.publishMessage(channel, message, publishResultCollector));
+        .forEach(
+            subscription -> subscription.publishMessage(channel, message, publishResultCollector));
 
-    publishResultCollector.collect();
-   publishResultCollector.pruneFailures();
     return publishResultCollector.getSuccessCount();
   }
 
-  private class PublishResultCollector {
-    private int resultsExpected;
-    private final CountDownLatch countDownLatch;
-    private final ConcurrentLinkedQueue<>
-
-    public PublishResultCollector(int resultsExpected) {
-      countDownLatch = new CountDownLatch(resultsExpected);
-    }
-
-    void success(PublishResult result){
-
-    }
-    void failure(PublishResult result){
-
-    }
-
-    public void collect() {
-      try {
-        countDownLatch.await();
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    public void pruneFailures() {
-
-    }
-
-    public long getSuccessCount() {
-      return 0;
-    }
-  }
-
-  private void prune(List<PublishResult> failedSubscriptions) {
-    failedSubscriptions.forEach(publishResult -> {
-      Client client = publishResult.getClient();
-      if (client.isDead()) {
-        subscriptions.remove(client);
-      }
-    });
-  }
 }

@@ -167,9 +167,7 @@ public class PubSubDUnitTest {
   }
 
   @Test
-  public void
-  shouldContinueToFunction_whenOneSubscriberShutsDownAbruptly_givenTwoSubscribersOnePublisher
-      ()
+  public void shouldContinueToFunction_whenOneSubscriberShutsDownAbruptly_givenTwoSubscribersOnePublisher()
       throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(2);
 
@@ -214,9 +212,7 @@ public class PubSubDUnitTest {
   }
 
   @Test
-  public void
-  shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribersTwoPublishers
-      ()
+  public void shouldContinueToFunction_whenOneSubscriberShutsDownGracefully_givenTwoSubscribersTwoPublishers()
       throws InterruptedException {
     CountDownLatch latch = new CountDownLatch(2);
 
