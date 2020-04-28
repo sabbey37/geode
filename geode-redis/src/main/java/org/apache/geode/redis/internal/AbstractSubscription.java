@@ -17,6 +17,7 @@
 package org.apache.geode.redis.internal;
 
 import java.nio.channels.ClosedChannelException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -24,7 +25,7 @@ import java.util.concurrent.TimeoutException;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelMetadata;
+import io.netty.channel.ChannelFutureListener;
 import org.apache.logging.log4j.Logger;
 
 import org.apache.geode.logging.internal.log4j.api.LogService;
@@ -46,7 +47,8 @@ public abstract class AbstractSubscription implements Subscription {
   }
 
   @Override
-  public PublishResult publishMessage(String channel, byte[] message) {
+  public PublishResult publishMessage(String channel, byte[] message,
+                                      PubSubImpl.PublishResultCollector publishResultCollector) {
     ByteBuf messageByteBuffer = constructResponse(channel, message);
     if (messageByteBuffer == null) {
       return new PublishResult(client, false);
@@ -81,12 +83,20 @@ public abstract class AbstractSubscription implements Subscription {
    * to the client, resulted in an error - for example if the client has disconnected and the write
    * fails. In such cases we need to be able to notify the caller.
    */
-  private boolean writeToChannelSynchronously(ByteBuf messageByteBuffer) {
+  private boolean writeToChannelSynchronously(ByteBuf messageByteBuffer, CountDownLatch latch) {
     ChannelFuture channelFuture = context.writeToChannel(messageByteBuffer);
+    channelFuture.addListener((ChannelFutureListener) future -> {
+      if(future.cause()==null){
+        resultSender++;
+        latch.countDown();
+      }
+    });
+    int MAX_NUMBER_OF_SECONDS_TO_WAIT = 10;
 
-    for(int i = 0; i < 10; i++) {
+    while(true) {
       try {
         channelFuture.get(1, TimeUnit.SECONDS);
+        channelFuture.await()
         break;
       } catch (ExecutionException e) {
         if (e.getCause() instanceof ClosedChannelException) {
@@ -99,11 +109,11 @@ public abstract class AbstractSubscription implements Subscription {
         logger.warn("Unable to write to channel", e);
         return false;
       } catch (TimeoutException e) {
-        logger.warn("Thread timed out waiting to write to channel", e);
         Channel channel = channelFuture.channel();
         if(channel.isActive()){
           continue;
         }
+        logger.warn("Channel is no longer active");
         return false;
       }
     }

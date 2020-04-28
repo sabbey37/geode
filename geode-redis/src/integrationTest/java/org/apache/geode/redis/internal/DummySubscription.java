@@ -26,7 +26,8 @@ public class DummySubscription implements Subscription {
   }
 
   @Override
-  public PublishResult publishMessage(String channel, byte[] message) {
+  public PublishResult publishMessage(String channel, byte[] message,
+                                      PubSubImpl.PublishResultCollector publishResultCollector) {
     return null;
   }
 

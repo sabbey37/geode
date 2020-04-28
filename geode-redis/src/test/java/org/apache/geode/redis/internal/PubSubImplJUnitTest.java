@@ -39,7 +39,8 @@ public class PubSubImplJUnitTest {
         spy(new ChannelSubscription(deadClient,
             "sally", mockExecutionHandlerContext));
 
-    doReturn(new PublishResult(deadClient, false)).when(subscription).publishMessage(any(), any());
+    doReturn(new PublishResult(deadClient, false)).when(subscription).publishMessage(any(), any(),
+        publishResultCollector);
     subscriptions.add(subscription);
 
     PubSubImpl subject = new PubSubImpl(subscriptions);

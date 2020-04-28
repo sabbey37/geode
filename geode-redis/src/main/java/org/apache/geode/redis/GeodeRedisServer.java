@@ -53,11 +53,13 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.timeout.WriteTimeoutHandler;
 import io.netty.util.concurrent.Future;
 
 import org.apache.geode.GemFireConfigException;
@@ -613,6 +615,9 @@ public class GeodeRedisServer {
         }).option(ChannelOption.SO_REUSEADDR, true)
         .option(ChannelOption.SO_RCVBUF, getBufferSize())
         .childOption(ChannelOption.SO_KEEPALIVE, true)
+        .childOption(EpollChannelOption.TCP_KEEPIDLE, 1)
+        .childOption(EpollChannelOption.TCP_KEEPINTVL, 30)
+        .childOption(EpollChannelOption.TCP_KEEPCNT, 3)
         .childOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, GeodeRedisServer.connectTimeoutMillis)
         .childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
 
