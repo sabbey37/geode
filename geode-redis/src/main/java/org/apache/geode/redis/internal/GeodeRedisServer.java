@@ -108,11 +108,7 @@ public class GeodeRedisServer {
   public static final String ENABLE_REDIS_UNSUPPORTED_COMMANDS_PARAM =
       "enable-redis-unsupported-commands";
 
-  /**
-   * Initialized with system property value but can also
-   * be explicitly set by tests.
-   */
-  private static volatile boolean ENABLE_REDIS_UNSUPPORTED_COMMANDS =
+  private static final boolean ENABLE_REDIS_UNSUPPORTED_COMMANDS =
       Boolean.getBoolean(ENABLE_REDIS_UNSUPPORTED_COMMANDS_PARAM);
 
   /**
@@ -196,7 +192,7 @@ public class GeodeRedisServer {
    * Helper method to set the number of worker threads
    *
    * @return If the System property {@value #NUM_THREADS_SYS_PROP_NAME} is set then that number is
-   *         used, otherwise {@link Runtime#availableProcessors()}.
+   * used, otherwise {@link Runtime#availableProcessors()}.
    */
   private int setNumWorkerThreads() {
     String prop = System.getProperty(NUM_THREADS_SYS_PROP_NAME);
@@ -226,7 +222,7 @@ public class GeodeRedisServer {
    * to the first non-loopback address
    *
    * @param port The port the server will bind to, will use {@value #DEFAULT_REDIS_SERVER_PORT} by
-   *        default
+   *             default
    */
   public GeodeRedisServer(int port) {
     this(null, port, null);
@@ -237,8 +233,9 @@ public class GeodeRedisServer {
    * address and port
    *
    * @param bindAddress The address to which the server will attempt to bind to
-   * @param port The port the server will bind to, will use {@value #DEFAULT_REDIS_SERVER_PORT}
-   *        by default, and will throw IllegalArgumentException if argument is less than 0
+   * @param port        The port the server will bind to, will use {@value #DEFAULT_REDIS_SERVER_PORT}
+   *                    by default, and will throw IllegalArgumentException if argument is less than
+   *                    0
    */
   public GeodeRedisServer(String bindAddress, int port) {
     this(bindAddress, port, null);
@@ -251,10 +248,10 @@ public class GeodeRedisServer {
    * effect.
    *
    * @param bindAddress The address to which the server will attempt to bind to
-   * @param port The port the server will bind to, will throw an IllegalArgumentException if
-   *        argument is less than 0. If the port is
-   *        {@value #RANDOM_PORT_INDICATOR} a random port is assigned.
-   * @param logLevel The logging level to be used by GemFire
+   * @param port        The port the server will bind to, will throw an IllegalArgumentException if
+   *                    argument is less than 0. If the port is {@value #RANDOM_PORT_INDICATOR} a
+   *                    random port is assigned.
+   * @param logLevel    The logging level to be used by GemFire
    */
   public GeodeRedisServer(String bindAddress, int port, String logLevel) {
     if (port < RANDOM_PORT_INDICATOR) {
@@ -277,13 +274,11 @@ public class GeodeRedisServer {
   }
 
   public void setAllowUnsupportedCommands(boolean allowUnsupportedCommands) {
-    if (regionProvider != null) {
-      Region<String, Object> configRegion = regionProvider.getConfigRegion();
-      configRegion.put(GeodeRedisServer.ENABLE_REDIS_UNSUPPORTED_COMMANDS_PARAM,
-          allowUnsupportedCommands);
-    } else {
-      ENABLE_REDIS_UNSUPPORTED_COMMANDS = allowUnsupportedCommands;
-    }
+
+    Region<String, Object> configRegion = regionProvider.getConfigRegion();
+    configRegion.put(GeodeRedisServer.ENABLE_REDIS_UNSUPPORTED_COMMANDS_PARAM,
+        allowUnsupportedCommands);
+
     if (allowUnsupportedCommands) {
       logUnsupportedCommandWarning();
     }
@@ -292,13 +287,10 @@ public class GeodeRedisServer {
   /**
    * Precedence of the internal property overrides the global system property.
    */
+
   public boolean allowUnsupportedCommands() {
-    if (regionProvider != null) {
-      return (boolean) regionProvider.getConfigRegion()
-          .getOrDefault(ENABLE_REDIS_UNSUPPORTED_COMMANDS_PARAM, ENABLE_REDIS_UNSUPPORTED_COMMANDS);
-    } else {
-      return ENABLE_REDIS_UNSUPPORTED_COMMANDS;
-    }
+    return (boolean) regionProvider.getConfigRegion()
+        .getOrDefault(ENABLE_REDIS_UNSUPPORTED_COMMANDS_PARAM, ENABLE_REDIS_UNSUPPORTED_COMMANDS);
   }
 
   private void logUnsupportedCommandWarning() {
@@ -583,9 +575,7 @@ public class GeodeRedisServer {
    * Static main method that allows the {@code GeodeRedisServer} to be started from the command
    * line. The supported command line arguments are
    * <p>
-   * -port= <br>
-   * -bind-address= <br>
-   * -log-level=
+   * -port= <br> -bind-address= <br> -log-level=
    *
    * @param args Command line args
    */
@@ -620,7 +610,7 @@ public class GeodeRedisServer {
    *
    * @param arg String where the argument is
    * @return The port number when the correct syntax was used, otherwise will return {@link
-   *         #DEFAULT_REDIS_SERVER_PORT}
+   * #DEFAULT_REDIS_SERVER_PORT}
    */
   private static int getPort(String arg) {
     int port = DEFAULT_REDIS_SERVER_PORT;

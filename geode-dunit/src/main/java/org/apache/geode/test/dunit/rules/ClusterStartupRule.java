@@ -143,7 +143,7 @@ public class ClusterStartupRule implements SerializableTestRule {
     };
   }
 
-  private void before(Description description) throws Throwable {
+  protected void before(Description description) throws Throwable {
     if (isJavaVersionAtLeast(JavaVersion.JAVA_11)) {
       // GEODE-6247: JDK 11 has an issue where native code is reporting committed is 2MB > max.
       IgnoredException.addIgnoredException("committed = 538968064 should be < max = 536870912");
