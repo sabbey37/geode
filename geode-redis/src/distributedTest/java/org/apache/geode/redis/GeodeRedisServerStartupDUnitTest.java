@@ -27,8 +27,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,9 +39,7 @@ import org.apache.geode.redis.internal.GeodeRedisServer;
 import org.apache.geode.redis.internal.GeodeRedisService;
 import org.apache.geode.test.dunit.rules.ClusterStartupRule;
 import org.apache.geode.test.dunit.rules.MemberVM;
-import org.apache.geode.test.dunit.rules.RedisClusterStartupRule;
 import org.apache.geode.test.junit.rules.GfshCommandRule;
-import org.apache.geode.test.junit.rules.Member;
 
 public class GeodeRedisServerStartupDUnitTest {
 
@@ -65,62 +61,57 @@ public class GeodeRedisServerStartupDUnitTest {
 
   @Test
   public void startupOnRandomPort_whenPortIsZero() {
-    MemberVM server1 = cluster.startServerVM(0, s -> s
+    MemberVM server = cluster.startServerVM(0, s -> s
         .withProperty(REDIS_PORT, "0")
         .withProperty(REDIS_BIND_ADDRESS, "localhost")
         .withProperty(REDIS_ENABLED, "true"));
 
-    assertThat(getServerPort(server1)).isNotEqualTo(0);
-
-    server1.stop();
+    assertThat(getServerPort(server)).isNotEqualTo(0);
   }
 
   @Test
   public void doNotStartup_whenRedisServiceIsNotEnabled() {
-    MemberVM server1 = cluster.startServerVM(0, s -> s
+    MemberVM server = cluster.startServerVM(0, s -> s
         .withProperty(REDIS_PORT, "0")
         .withProperty(REDIS_BIND_ADDRESS, "localhost"));
 
-    server1.invoke(() -> {
+    server.invoke(() -> {
       assertThat(ClusterStartupRule.getCache().getService(GeodeRedisService.class))
           .as("GeodeRedisService should not exist")
           .isNull();
     });
-
-    server1.stop();
   }
 
   @Test
   public void whenStartedWithDefaults_unsupportedCommandsAreNotAvailable() {
-    MemberVM server1 = cluster.startServerVM(0, s -> s
+    MemberVM server = cluster.startServerVM(0, s -> s
         .withProperty(REDIS_PORT, "0")
         .withProperty(REDIS_BIND_ADDRESS, "localhost")
         .withProperty(REDIS_ENABLED, "true"));
 
-    Jedis jedis = new Jedis("localhost", getServerPort(server1));
+    Jedis jedis = new Jedis("localhost", getServerPort(server));
 
     assertThatExceptionOfType(JedisDataException.class)
         .isThrownBy(() -> jedis.echo("unsupported"))
         .withMessageContaining("ECHO is not supported.");
 
     jedis.disconnect();
-    server1.stop();
   }
 
   @Test
   public void whenStartedWithDefaults_unsupportedCommandsCanBeEnabledDynamically() {
-    MemberVM server1 = cluster.startServerVM(0, s -> s
+    MemberVM server = cluster.startServerVM(0, s -> s
         .withProperty(REDIS_PORT, "0")
         .withProperty(REDIS_BIND_ADDRESS, "localhost")
         .withProperty(REDIS_ENABLED, "true"));
 
-    Jedis jedis = new Jedis("localhost", getServerPort(server1));
+    Jedis jedis = new Jedis("localhost", getServerPort(server));
 
     assertThatExceptionOfType(JedisDataException.class)
         .isThrownBy(() -> jedis.echo("unsupported"))
         .withMessageContaining("ECHO is not supported.");
 
-    server1.invoke(() -> {
+    server.invoke(() -> {
       GeodeRedisService service = ClusterStartupRule.getCache().getService(GeodeRedisService.class);
       service.setEnableUnsupported(true);
     });
@@ -128,7 +119,6 @@ public class GeodeRedisServerStartupDUnitTest {
     assertThat(jedis.echo("supported")).isEqualTo("supported");
 
     jedis.disconnect();
-    server1.stop();
   }
 
   @Test
@@ -165,8 +155,6 @@ public class GeodeRedisServerStartupDUnitTest {
 
     jedis.disconnect();
     jedis2.disconnect();
-    server1.stop();
-    server2.stop();
   }
 
   @Test
@@ -189,20 +177,16 @@ public class GeodeRedisServerStartupDUnitTest {
     assertThat(jedis.echo("supported")).isEqualTo("supported");
 
     jedis.disconnect();
-    server1.stop();
-    server2.stop();
   }
 
   @Test
   public void whenNoRedisServers_unsupportedRedisCommandWillError() throws Exception {
     MemberVM locator = cluster.startLocatorVM(0);
-    MemberVM server1 = cluster.startServerVM(1, s -> s
+    cluster.startServerVM(1, s -> s
         .withConnectionToLocator(locator.getPort()));
 
     gfsh.connectAndVerify(locator);
     gfsh.executeAndAssertThat("redis --enable-unsupported-commands").statusIsError();
-
-    server1.stop();
   }
 
   @Test
@@ -228,20 +212,16 @@ public class GeodeRedisServerStartupDUnitTest {
     assertThat(jedis.echo("supported")).isEqualTo("supported");
 
     jedis.disconnect();
-    server1.stop();
-    server2.stop();
   }
 
   @Test
   public void startupFailsGivenIllegalPort() {
-    assertThatThrownBy(() -> {
-      MemberVM server1 = cluster.startServerVM(0, s -> s
-          .withProperty(REDIS_PORT, "-1")
-          .withProperty(REDIS_BIND_ADDRESS, "localhost")
-          .withProperty(REDIS_ENABLED, "true"));
-      server1.stop();
-    }).hasRootCauseMessage(
-        "Could not set \"redis-port\" to \"-1\" because its value can not be less than \"0\".");
+    assertThatThrownBy(() -> cluster.startServerVM(0, s -> s
+        .withProperty(REDIS_PORT, "-1")
+        .withProperty(REDIS_BIND_ADDRESS, "localhost")
+        .withProperty(REDIS_ENABLED, "true")))
+            .hasRootCauseMessage(
+                "Could not set \"redis-port\" to \"-1\" because its value can not be less than \"0\".");
   }
 
   @Test
@@ -251,38 +231,33 @@ public class GeodeRedisServerStartupDUnitTest {
     addIgnoredException("Could not start Server");
     try (Socket interferingSocket = new Socket()) {
       interferingSocket.bind(new InetSocketAddress("localhost", port));
-      assertThatThrownBy(() -> {
-        MemberVM server1 = cluster.startServerVM(0, s -> s
-            .withProperty(REDIS_PORT, "" + port)
-            .withProperty(REDIS_BIND_ADDRESS, "localhost")
-            .withProperty(REDIS_ENABLED, "true"));
-        server1.stop();
-      })
-          .hasRootCauseMessage("Address already in use");
+      assertThatThrownBy(() -> cluster.startServerVM(0, s -> s
+          .withProperty(REDIS_PORT, "" + port)
+          .withProperty(REDIS_BIND_ADDRESS, "localhost")
+          .withProperty(REDIS_ENABLED, "true")))
+              .hasRootCauseMessage("Address already in use");
     }
   }
 
   @Test
   public void startupWorksGivenAnyLocalAddress() {
     String anyLocal = LocalHostUtil.getAnyLocalAddress().getHostAddress();
-    MemberVM server1 = cluster.startServerVM(0, s -> s
+    MemberVM server = cluster.startServerVM(0, s -> s
         .withProperty(REDIS_PORT, "0")
         .withProperty(REDIS_BIND_ADDRESS, anyLocal)
         .withProperty(REDIS_ENABLED, "true"));
 
-    assertThat(getServerPort(server1))
+    assertThat(getServerPort(server))
         .isNotEqualTo(GeodeRedisServer.DEFAULT_REDIS_SERVER_PORT);
-
-    server1.stop();
   }
 
   @Test
   public void startupWorksGivenNoBindAddress() {
-    MemberVM server1 = cluster.startServerVM(0, s -> s
+    MemberVM server = cluster.startServerVM(0, s -> s
         .withProperty(REDIS_PORT, "0")
         .withProperty(REDIS_ENABLED, "true"));
 
-    assertThat(getServerPort(server1))
+    assertThat(getServerPort(server))
         .isNotEqualTo(GeodeRedisServer.DEFAULT_REDIS_SERVER_PORT);
   }
 

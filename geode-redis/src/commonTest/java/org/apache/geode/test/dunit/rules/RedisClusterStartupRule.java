@@ -22,8 +22,6 @@ import static org.apache.geode.distributed.ConfigurationProperties.REDIS_PORT;
 
 import java.util.Properties;
 
-import org.hamcrest.Description;
-
 import org.apache.geode.redis.internal.GeodeRedisServer;
 import org.apache.geode.redis.internal.GeodeRedisService;
 import org.apache.geode.test.junit.rules.ServerStarterRule;
@@ -36,13 +34,6 @@ public class RedisClusterStartupRule extends ClusterStartupRule {
 
   public RedisClusterStartupRule(int numVMs) {
     super(numVMs);
-  }
-
-  @Override
-  protected void before(org.junit.runner.Description description) throws Throwable {
-    super.before(description);
-
-    System.clearProperty(GeodeRedisServer.ENABLE_REDIS_UNSUPPORTED_COMMANDS_PARAM);
   }
 
   public MemberVM startRedisVM(int index, int... locatorPort) {
