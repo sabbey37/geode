@@ -16,10 +16,13 @@ package org.apache.geode.redis.internal;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -29,6 +32,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import redis.clients.jedis.Jedis;
 
+import org.apache.geode.redis.GeodeRedisServerRule;
 import org.apache.geode.test.junit.categories.RedisTest;
 
 @Category({RedisTest.class})
@@ -36,14 +40,14 @@ public class SpringRedisIntegrationTest {
   static RedisTemplate redisTemplate;
   static Jedis jedis;
 
-//  @ClassRule
-//  public static GeodeRedisServerRule server = new GeodeRedisServerRule();
+  @ClassRule
+  public static GeodeRedisServerRule server = new GeodeRedisServerRule();
 
   @BeforeClass
   public static void setUp() {
     RedisStandaloneConfiguration configuration = new RedisStandaloneConfiguration();
     configuration.setHostName("localhost");
-    configuration.setPort(6379);
+    configuration.setPort(server.getPort());
     JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory(configuration);
 
 //    jedis = new Jedis("localhost", 6379, 10000000);
@@ -66,7 +70,13 @@ public class SpringRedisIntegrationTest {
     redisTemplate.setKeySerializer(new StringRedisSerializer());
     redisTemplate.afterPropertiesSet();
 
-    ValueOperations valueOperations = redisTemplate.opsForValue();
+    redisTemplate.opsForValue().set("key1", "value1");
+    redisTemplate.opsForValue().set("key2", "value2");
+    redisTemplate.opsForValue().set("key3", "value3");
+    redisTemplate.opsForValue().set("key4", "value4");
+    Set keys = redisTemplate.opsForValue().getOperations().keys("*");
+
+    List values = redisTemplate.opsForValue().multiGet(keys);
   }
 
   public SpringRedisIntegrationTest() {
