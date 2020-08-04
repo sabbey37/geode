@@ -105,6 +105,7 @@ EXEC_COMMAND="bash -c 'echo Building with: $SEP \
   /tmp/attach_sha_to_branch.sh geode ${BUILD_BRANCH} $SEP \
   cd geode $SEP \
   cp gradlew gradlewStrict $SEP \
+  JAVA_TEST_PATH=${JAVA_TEST_PATH} $SEP \
   sed -e 's/JAVA_HOME/GRADLE_JVM/g' -i.bak gradlewStrict $SEP \
   GRADLE_JVM=${JAVA_BUILD_PATH} ./gradlewStrict ${GRADLE_ARGS}'"
 echo "${EXEC_COMMAND}"
