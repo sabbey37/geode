@@ -29,10 +29,12 @@ groups:
 {%- endfor %}
 resources:
 - name: geode
-  type: pull-request
+  type: git
   source:
     access_token: ((github-apachegeode-ci-read-only-token))
     repository: {{repository.fork}}/geode
+    branch: new-pr
+    uri: https://github.com/{{repository.fork}}/geode.git
     disable_ci_skip: false
     skip_ssl_verification: false
 - name: geode-status
