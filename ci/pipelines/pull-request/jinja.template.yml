@@ -58,7 +58,7 @@ resources:
   source:
     username: ((docker-username))
     password: ((docker-password))
-    repository: gcr.io/apachegeode-ci/((pipeline-prefix))alpine-tools
+    repository: gcr.io/((gcp-project))/((pipeline-prefix))alpine-tools
     tag: latest
 
 - name: linux-builder-image-family
