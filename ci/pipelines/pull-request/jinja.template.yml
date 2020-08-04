@@ -29,12 +29,10 @@ groups:
 {%- endfor %}
 resources:
 - name: geode
-  type: git
+  type: pull-request
   source:
     access_token: ((github-apachegeode-ci-read-only-token))
     repository: {{repository.fork}}/geode
-    branch: new-pr
-    uri: https://github.com/{{repository.fork}}/geode.git
     disable_ci_skip: false
     skip_ssl_verification: false
 - name: geode-status
@@ -60,7 +58,7 @@ resources:
   source:
     username: ((docker-username))
     password: ((docker-password))
-    repository: gcr.io/((gcp-project))/((pipeline-prefix))alpine-tools
+    repository: gcr.io/apachegeode-ci/((pipeline-prefix))alpine-tools
     tag: latest
 
 - name: linux-builder-image-family
