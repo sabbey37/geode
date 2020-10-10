@@ -36,4 +36,3 @@ dependencies {
 jar {
   baseName = 'geode-modules-session-internal'
 }
-

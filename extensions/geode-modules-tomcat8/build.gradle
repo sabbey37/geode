@@ -17,11 +17,12 @@ import org.apache.geode.gradle.plugins.DependencyConstraints
  * limitations under the License.
  */
 
+import org.apache.geode.gradle.plugins.DependencyConstraints
+
 apply from: "${rootDir}/${scriptDir}/standard-subproject-configuration.gradle"
+apply from: "${rootDir}/${scriptDir}/publish-java.gradle"
 
 evaluationDependsOn(":geode-core")
-
-
 
 dependencies {
   compile(platform(project(':boms:geode-all-bom')))
@@ -84,4 +85,3 @@ eclipse.classpath.file {
     classpath.entries.removeAll { entry -> entry.path.contains('geode-modules/build')}
   }
 }
-
