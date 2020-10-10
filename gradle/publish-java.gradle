@@ -1,0 +1,77 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: "${rootDir}/gradle/publish-common.gradle"
+apply from: "${rootDir}/gradle/publish-artifacts.gradle"
+
+publishing {
+  publications {
+    maven(MavenPublication) {
+      from components.java
+      // use the (possibly empty) Jar tasks above for sources and javadoc
+      artifact sourcesJar
+      artifact javadocJar
+    }
+  }
+}
+
+gradle.taskGraph.whenReady({ graph ->
+  tasks.withType(Jar).each { jar ->
+    jar.doFirst {
+      def projectDependencies = []
+      def runtimeList = []
+
+      // Iterate over runtime classpath dependencies and separate project dependencies from library
+      // dependencies.
+      configurations.runtimeClasspath
+              .collect { it.name - ".jar" }
+              .each { dependency ->
+                if (dependency.startsWith("geode-")) {
+                  projectDependencies.add(dependency)
+                } else {
+                  runtimeList.add(dependency+".jar")
+                }
+              }
+
+      // Iterate over project (parent) dependencies and remove its runtime library dependencies from
+      // the current project's runtime library dependencies.
+      // Also removes all parent project's runtime project dependencies from the current project.
+      // This returns a unique set of parent project and library dependencies that are not found
+      // within it's parent's project dependencies.
+      projectDependencies.clone().each { projectDependency ->
+        def geodeProject = projectDependency - "-${version}.jar"
+        if (projectDependencies.contains(geodeProject)) {
+          try {
+            def parentProject = project(":$geodeProject" - "-$version")
+            def collect = parentProject.configurations.runtimeClasspath.collect { it.name }
+            runtimeList.removeAll(collect)
+            projectDependencies.removeAll(collect.collect {it-".jar"})
+          } catch (UnknownProjectException ignore) {
+          }
+        }
+      }
+
+      manifest {
+        attributes.put("Class-Path", runtimeList.join(' '))
+        attributes.put("Dependent-Modules", projectDependencies.join(' '))
+        attributes.put("Module-Name", project.name)
+      }
+    }
+  }
+})
+
+
