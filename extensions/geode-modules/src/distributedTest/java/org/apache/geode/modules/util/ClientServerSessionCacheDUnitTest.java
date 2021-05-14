@@ -27,6 +27,7 @@ import java.util.Collection;
 import javax.servlet.http.HttpSession;
 
 import org.apache.juli.logging.Log;
+import org.apache.logging.log4j.Logger;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -47,6 +48,7 @@ import org.apache.geode.distributed.internal.MembershipListener;
 import org.apache.geode.internal.cache.InternalCache;
 import org.apache.geode.internal.cache.execute.metrics.FunctionStats;
 import org.apache.geode.internal.cache.execute.metrics.FunctionStatsManager;
+import org.apache.geode.logging.internal.log4j.api.LogService;
 import org.apache.geode.modules.session.catalina.ClientServerSessionCache;
 import org.apache.geode.modules.session.catalina.SessionManager;
 import org.apache.geode.test.dunit.DistributedTestUtils;
@@ -60,6 +62,7 @@ public class ClientServerSessionCacheDUnitTest implements Serializable {
   private CacheRule cacheRule = new CacheRule();
   private DistributedRule distributedRule = new DistributedRule();
   private ClientCacheRule clientCacheRule = new ClientCacheRule();
+  private static final Logger logger = LogService.getLogger();
 
   @Rule
   public transient RuleChain ruleChain = RuleChain.outerRule(distributedRule)
@@ -247,6 +250,7 @@ public class ClientServerSessionCacheDUnitTest implements Serializable {
   }
 
   private void validateBootstrapped() {
+    logger.info("random change to trigger StressNewTest");
     final InternalCache cache = cacheRule.getCache();
 
     final DistributionManager distributionManager =
