@@ -14,7 +14,10 @@
  */
 package org.apache.geode.modules.session.catalina;
 
+import javax.servlet.http.HttpSession;
+
 import org.apache.catalina.Manager;
+import org.apache.catalina.session.StandardSessionFacade;
 
 
 @SuppressWarnings("serial")
@@ -36,5 +39,25 @@ public class DeltaSession9 extends DeltaSession {
    */
   DeltaSession9(Manager manager) {
     super(manager);
+  }
+
+  public HttpSession getHttpSession(DeltaSession session) {
+    return (HttpSession) session;
+  }
+
+  /**
+   * Return the <code>HttpSession</code> for which this object is the facade.
+   */
+  @Override
+  public HttpSession getSession() {
+    if (facade == null) {
+      if (isPackageProtectionEnabled()) {
+        final DeltaSession fsession = this;
+        facade = getNewFacade(fsession);
+      } else {
+        facade = new StandardSessionFacade(this);
+      }
+    }
+    return facade;
   }
 }

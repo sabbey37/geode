@@ -55,6 +55,7 @@ def otherDependentProjectNames = [
   ':extensions:geode-modules-tomcat7',
   ':extensions:geode-modules-tomcat8',
   ':extensions:geode-modules-tomcat9',
+  ':extensions:geode-modules-tomcat10',
   ':geode-management',
   ':geode-pulse',
   ':geode-web',
@@ -174,8 +175,9 @@ dependencies {
   javadocOnly project(':extensions:geode-modules-session')
   javadocOnly project(':extensions:geode-modules-session')
   javadocOnly project(':extensions:geode-modules-tomcat7')
-  javadocOnly project(':extensions:geode-modules-tomcat9')
   javadocOnly project(':extensions:geode-modules-tomcat8')
+  javadocOnly project(':extensions:geode-modules-tomcat9')
+  javadocOnly project(':extensions:geode-modules-tomcat10')
 
   testImplementation(project(':geode-core'))
   testImplementation(project(':geode-gfsh'))

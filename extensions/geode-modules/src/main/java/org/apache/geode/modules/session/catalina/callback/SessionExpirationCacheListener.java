@@ -25,11 +25,11 @@ import org.apache.geode.cache.util.CacheListenerAdapter;
 import org.apache.geode.modules.session.catalina.DeltaSessionInterface;
 import org.apache.geode.modules.util.ContextMapper;
 
-public class SessionExpirationCacheListener extends CacheListenerAdapter<String, HttpSession>
+public class SessionExpirationCacheListener<T> extends CacheListenerAdapter<String, T>
     implements Declarable {
 
   @Override
-  public void afterDestroy(EntryEvent<String, HttpSession> event) {
+  public void afterDestroy(EntryEvent<String, T> event) {
     // A Session expired. If it was destroyed by Geode expiration, process it.
     // If it was destroyed via Session.invalidate, ignore it since it has
     // already been processed.

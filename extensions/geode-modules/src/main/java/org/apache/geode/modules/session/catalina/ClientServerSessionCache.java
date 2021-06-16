@@ -42,7 +42,7 @@ import org.apache.geode.modules.util.SessionCustomExpiry;
 import org.apache.geode.modules.util.TouchPartitionedRegionEntriesFunction;
 import org.apache.geode.modules.util.TouchReplicatedRegionEntriesFunction;
 
-public class ClientServerSessionCache extends AbstractSessionCache {
+public class ClientServerSessionCache<T> extends AbstractSessionCache<T> {
 
   private ClientCache cache;
 
@@ -224,8 +224,8 @@ public class ClientServerSessionCache extends AbstractSessionCache {
     }
   }
 
-  Region<String, HttpSession> createLocalSessionRegionWithRegisterInterest() {
-    Region<String, HttpSession> region = createLocalSessionRegion();
+  Region<String, T> createLocalSessionRegionWithRegisterInterest() {
+    Region<String, T> region = createLocalSessionRegion();
 
     // register interest are needed for caching proxy client:
     // to get updates from server if local cache is enabled;
@@ -236,8 +236,8 @@ public class ClientServerSessionCache extends AbstractSessionCache {
     return region;
   }
 
-  Region<String, HttpSession> createLocalSessionRegion() {
-    ClientRegionFactory<String, HttpSession> factory = null;
+  Region<String, T> createLocalSessionRegion() {
+    ClientRegionFactory<String, T> factory;
     if (getSessionManager().getEnableLocalCache()) {
       // Create the region factory with caching and heap LRU enabled
       factory = this.cache.createClientRegionFactory(ClientRegionShortcut.CACHING_PROXY_HEAP_LRU);

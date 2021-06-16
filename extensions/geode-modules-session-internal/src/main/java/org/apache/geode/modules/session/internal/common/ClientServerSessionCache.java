@@ -34,6 +34,7 @@ import org.apache.geode.cache.client.ClientRegionShortcut;
 import org.apache.geode.cache.execute.Execution;
 import org.apache.geode.cache.execute.FunctionService;
 import org.apache.geode.cache.execute.ResultCollector;
+import org.apache.geode.modules.session.catalina.DeltaSessionInterface;
 import org.apache.geode.modules.util.BootstrappingFunction;
 import org.apache.geode.modules.util.CreateRegionFunction;
 import org.apache.geode.modules.util.RegionConfiguration;
@@ -157,14 +158,14 @@ public class ClientServerSessionCache extends AbstractSessionCache {
   }
 
   private Region<String, HttpSession> createLocalSessionRegion() {
-    ClientRegionFactory<String, HttpSession> factory = null;
+    ClientRegionFactory<String, DeltaSessionInterface> factory = null;
     boolean enableLocalCache = (Boolean) properties.get(CacheProperty.ENABLE_LOCAL_CACHE);
 
     String regionName = (String) properties.get(CacheProperty.REGION_NAME);
     if (enableLocalCache) {
       // Create the region factory with caching and heap LRU enabled
       factory = this.cache
-          .<String, HttpSession>createClientRegionFactory(
+          .<String, DeltaSessionInterface>createClientRegionFactory(
               ClientRegionShortcut.CACHING_PROXY_HEAP_LRU)
           .setCustomEntryIdleTimeout(new SessionCustomExpiry());
       LOG.info("Created new local client session region: {}", regionName);

@@ -14,7 +14,6 @@
  */
 package org.apache.geode.modules.session.catalina;
 
-import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.Session;
 
@@ -24,7 +23,7 @@ import org.apache.geode.modules.session.catalina.internal.DeltaSessionStatistics
 import org.apache.geode.modules.util.RegionConfiguration;
 import org.apache.geode.modules.util.SessionCustomExpiry;
 
-public abstract class AbstractSessionCache implements SessionCache {
+public abstract class AbstractSessionCache<T> implements SessionCache<T> {
 
   protected SessionManager sessionManager;
 
@@ -32,14 +31,14 @@ public abstract class AbstractSessionCache implements SessionCache {
    * The sessionRegion is the <code>Region</code> that actually stores and replicates the
    * <code>Session</code>s.
    */
-  Region<String, HttpSession> sessionRegion;
+  Region<String, T> sessionRegion;
 
   /**
    * The operatingRegion is the <code>Region</code> used to do HTTP operations. if local cache is
    * enabled, then this will be the local <code>Region</code>; otherwise, it will be the session
    * <code>Region</code>.
    */
-  Region<String, HttpSession> operatingRegion;
+  Region<String, T> operatingRegion;
 
   protected DeltaSessionStatistics statistics;
 
@@ -54,11 +53,11 @@ public abstract class AbstractSessionCache implements SessionCache {
 
   @Override
   public void putSession(Session session) {
-    getOperatingRegion().put(session.getId(), (HttpSession) session);
+    getOperatingRegion().put(session.getId(), (T) session);
   }
 
   @Override
-  public HttpSession getSession(String sessionId) {
+  public T getSession(String sessionId) {
     return getOperatingRegion().get(sessionId);
   }
 
@@ -81,12 +80,12 @@ public abstract class AbstractSessionCache implements SessionCache {
   }
 
   @Override
-  public Region<String, HttpSession> getSessionRegion() {
+  public Region<String, T> getSessionRegion() {
     return this.sessionRegion;
   }
 
   @Override
-  public Region<String, HttpSession> getOperatingRegion() {
+  public Region<String, T> getOperatingRegion() {
     return this.operatingRegion;
   }
 

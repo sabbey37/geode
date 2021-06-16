@@ -23,11 +23,11 @@ import static org.mockito.Mockito.when;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.servlet.http.HttpSession;
-
+import org.apache.catalina.Context;
 import org.apache.catalina.Manager;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
+import org.apache.catalina.session.StandardSessionFacade;
 import org.apache.catalina.valves.ValveBase;
 import org.apache.juli.logging.Log;
 import org.junit.Rule;
@@ -45,7 +45,7 @@ public class AbstractSessionValveIntegrationTest {
   TestDeltaSession deltaSession;
   DeltaSessionManager deltaSessionManager;
 
-  Region<String, HttpSession> httpSessionRegion;
+  Region<String, DeltaSession> httpSessionRegion;
 
   @Rule
   public ServerStarterRule server = new ServerStarterRule().withAutoStart();
@@ -54,6 +54,7 @@ public class AbstractSessionValveIntegrationTest {
     deltaSessionManager = mock(DeltaSessionManager.class);
 
     when(deltaSessionManager.getLogger()).thenReturn(mock(Log.class));
+    when(deltaSessionManager.getTheContext()).thenReturn(mock(Context.class));
     SessionCache mockSessionCache = mock(AbstractSessionCache.class);
     doCallRealMethod().when(mockSessionCache).getSession(any());
     when(mockSessionCache.getOperatingRegion()).thenReturn(httpSessionRegion);
@@ -62,7 +63,7 @@ public class AbstractSessionValveIntegrationTest {
 
   protected void parameterizedSetUp(RegionShortcut regionShortcut) {
     httpSessionRegion = server.getCache()
-        .<String, HttpSession>createRegionFactory(regionShortcut)
+        .<String, DeltaSession>createRegionFactory(regionShortcut)
         .create(REGION_NAME);
 
     mockDeltaSessionManager();

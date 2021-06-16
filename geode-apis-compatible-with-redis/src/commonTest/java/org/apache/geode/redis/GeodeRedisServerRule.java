@@ -47,7 +47,7 @@ public class GeodeRedisServerRule extends SerializableExternalResource {
   @Override
   protected void before() {
     cache = cacheFactory.create();
-    server = new GeodeRedisServer("localhost", 0, (InternalCache) cache);
+    server = new GeodeRedisServer("localhost", 6380, (InternalCache) cache);
     server.setAllowUnsupportedCommands(enableUnsupportedCommands);
   }
 

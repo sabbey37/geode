@@ -15,11 +15,26 @@
 
 package org.apache.geode.modules.session.catalina;
 
+import java.io.IOException;
+
+import javax.servlet.ServletException;
+
+import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 
 @Deprecated
 public final class Tomcat6CommitSessionValve
     extends AbstractCommitSessionValve<Tomcat6CommitSessionValve> {
+
+  @Override
+  public void invoke(final Request request, final Response response)
+      throws IOException, ServletException {
+    try {
+      getNext().invoke(request, wrapResponse(response));
+    } finally {
+      commitSession(request);
+    }
+  }
 
   @Override
   protected Response wrapResponse(Response response) {

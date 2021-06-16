@@ -38,6 +38,7 @@ import org.apache.catalina.ha.session.SerializablePrincipal;
 import org.apache.catalina.realm.GenericPrincipal;
 import org.apache.catalina.security.SecurityUtil;
 import org.apache.catalina.session.StandardSession;
+import org.apache.catalina.session.StandardSessionFacade;
 import org.apache.juli.logging.Log;
 
 import org.apache.geode.DataSerializable;
@@ -115,21 +116,21 @@ public class DeltaSession extends StandardSession
     setOwner(manager);
   }
 
-  /**
-   * Return the <code>HttpSession</code> for which this object is the facade.
-   */
-  @Override
-  public HttpSession getSession() {
-    if (facade == null) {
-      if (isPackageProtectionEnabled()) {
-        final DeltaSession fsession = this;
-        facade = getNewFacade(fsession);
-      } else {
-        facade = new DeltaSessionFacade(this);
-      }
-    }
-    return (facade);
-  }
+//  /**
+//   * Return the <code>HttpSession</code> for which this object is the facade.
+//   */
+//  @Override
+//  public HttpSession getSession() {
+//    if (facade == null) {
+//      if (isPackageProtectionEnabled()) {
+//        final DeltaSession fsession = this;
+//        facade = getNewFacade(fsession);
+//      } else {
+//        facade = new StandardSessionFacade(this);
+//      }
+//    }
+//    return facade;
+//  }
 
   @Override
   public Principal getPrincipal() {
@@ -742,9 +743,9 @@ public class DeltaSession extends StandardSession
   }
 
   // Helper methods to enable better unit testing
-  DeltaSessionFacade getNewFacade(DeltaSessionInterface fSession) {
+  StandardSessionFacade getNewFacade(DeltaSession fSession) {
     return AccessController.doPrivileged(
-        (PrivilegedAction<DeltaSessionFacade>) () -> new DeltaSessionFacade(fSession));
+        (PrivilegedAction<StandardSessionFacade>) () -> new StandardSessionFacade(fSession));
   }
 
   boolean isPackageProtectionEnabled() {

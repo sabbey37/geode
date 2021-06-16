@@ -22,16 +22,16 @@ import org.apache.geode.cache.Declarable;
 import org.apache.geode.cache.LoaderHelper;
 import org.apache.geode.cache.Region;
 
-public class LocalSessionCacheLoader implements CacheLoader<String, HttpSession>, Declarable {
+public class LocalSessionCacheLoader<T> implements CacheLoader<String, T>, Declarable {
 
-  private final Region<String, HttpSession> backingRegion;
+  private final Region<String, T> backingRegion;
 
-  public LocalSessionCacheLoader(Region<String, HttpSession> backingRegion) {
+  public LocalSessionCacheLoader(Region<String, T> backingRegion) {
     this.backingRegion = backingRegion;
   }
 
   @Override
-  public HttpSession load(LoaderHelper<String, HttpSession> helper) throws CacheLoaderException {
+  public T load(LoaderHelper<String, T> helper) throws CacheLoaderException {
     return this.backingRegion.get(helper.getKey());
   }
 

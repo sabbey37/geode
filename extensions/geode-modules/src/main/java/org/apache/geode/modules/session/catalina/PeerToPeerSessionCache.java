@@ -16,8 +16,6 @@ package org.apache.geode.modules.session.catalina;
 
 import java.util.Set;
 
-import javax.servlet.http.HttpSession;
-
 import org.apache.geode.cache.Cache;
 import org.apache.geode.cache.GemFireCache;
 import org.apache.geode.cache.Region;
@@ -38,7 +36,7 @@ import org.apache.geode.modules.util.SessionCustomExpiry;
 import org.apache.geode.modules.util.TouchPartitionedRegionEntriesFunction;
 import org.apache.geode.modules.util.TouchReplicatedRegionEntriesFunction;
 
-public class PeerToPeerSessionCache extends AbstractSessionCache {
+public class PeerToPeerSessionCache<T> extends AbstractSessionCache<T> {
 
   private Cache cache;
 
@@ -193,13 +191,13 @@ public class PeerToPeerSessionCache extends AbstractSessionCache {
     return RegionHelper.createRegion((Cache) getCache(), configuration);
   }
 
-  private Region<String, HttpSession> createOrRetrieveLocalRegion() {
+  private Region<String, T> createOrRetrieveLocalRegion() {
     // Attempt to retrieve the fronting region
     String frontingRegionName = this.sessionRegion.getName() + "_local";
-    Region<String, HttpSession> frontingRegion = this.cache.getRegion(frontingRegionName);
+    Region<String, T> frontingRegion = this.cache.getRegion(frontingRegionName);
     if (frontingRegion == null) {
       // Create the region factory
-      RegionFactory<String, HttpSession> factory =
+      RegionFactory<String, T> factory =
           this.cache.createRegionFactory(RegionShortcut.LOCAL_HEAP_LRU);
 
       // Add the cache loader and writer

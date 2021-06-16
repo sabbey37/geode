@@ -14,8 +14,6 @@
  */
 package org.apache.geode.modules.session.catalina.callback;
 
-import javax.servlet.http.HttpSession;
-
 import org.apache.geode.cache.CacheWriterException;
 import org.apache.geode.cache.Declarable;
 import org.apache.geode.cache.EntryEvent;
@@ -23,27 +21,27 @@ import org.apache.geode.cache.EntryNotFoundException;
 import org.apache.geode.cache.Region;
 import org.apache.geode.cache.util.CacheWriterAdapter;
 
-public class LocalSessionCacheWriter extends CacheWriterAdapter<String, HttpSession>
+public class LocalSessionCacheWriter<T> extends CacheWriterAdapter<String, T>
     implements Declarable {
 
-  private final Region<String, HttpSession> backingRegion;
+  private final Region<String, T> backingRegion;
 
-  public LocalSessionCacheWriter(Region<String, HttpSession> backingRegion) {
+  public LocalSessionCacheWriter(Region<String, T> backingRegion) {
     this.backingRegion = backingRegion;
   }
 
   @Override
-  public void beforeCreate(EntryEvent<String, HttpSession> event) throws CacheWriterException {
+  public void beforeCreate(EntryEvent<String, T> event) throws CacheWriterException {
     this.backingRegion.put(event.getKey(), event.getNewValue(), event.getCallbackArgument());
   }
 
   @Override
-  public void beforeUpdate(EntryEvent<String, HttpSession> event) throws CacheWriterException {
+  public void beforeUpdate(EntryEvent<String, T> event) throws CacheWriterException {
     this.backingRegion.put(event.getKey(), event.getNewValue(), event.getCallbackArgument());
   }
 
   @Override
-  public void beforeDestroy(EntryEvent<String, HttpSession> event) throws CacheWriterException {
+  public void beforeDestroy(EntryEvent<String, T> event) throws CacheWriterException {
     try {
       this.backingRegion.destroy(event.getKey(), event.getCallbackArgument());
     } catch (EntryNotFoundException e) {

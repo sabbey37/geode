@@ -16,6 +16,7 @@ package org.apache.geode.modules.session.catalina;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -23,17 +24,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.io.IOException;
-
-import javax.servlet.ServletException;
-
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
-import org.apache.catalina.Context;
 import org.apache.catalina.Manager;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
-import org.apache.juli.logging.Log;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -46,7 +41,7 @@ public abstract class AbstractCommitSessionValveIntegrationTest<CommitSessionVal
   protected Response response;
   protected final TestValve testValve;
   protected final CommitSessionValveT commitSessionValve;
-  protected DeltaSessionFacade deltaSessionFacade;
+
 
   public AbstractCommitSessionValveIntegrationTest() {
     testValve = new TestValve(false);
@@ -57,21 +52,10 @@ public abstract class AbstractCommitSessionValveIntegrationTest<CommitSessionVal
 
   protected abstract CommitSessionValveT createCommitSessionValve();
 
-  @Override
-  protected void parameterizedSetUp(final RegionShortcut regionShortcut) {
-    super.parameterizedSetUp(regionShortcut);
-
-    deltaSessionFacade = new DeltaSessionFacade(deltaSession);
-
-    // Valve use the context to log messages
-    when(deltaSessionManager.getTheContext()).thenReturn(mock(Context.class));
-    when(deltaSessionManager.getTheContext().getLogger()).thenReturn(mock(Log.class));
-  }
-
   @Test
   @Parameters({"REPLICATE", "PARTITION"})
   public void invokeShouldCallNextChainedValveAndDoNothingWhenSessionManagerDoesNotBelongToGeode(
-      final RegionShortcut regionShortcut) throws IOException, ServletException {
+      final RegionShortcut regionShortcut) throws Exception {
     parameterizedSetUp(regionShortcut);
     when(request.getContext().getManager()).thenReturn(mock(Manager.class));
 
@@ -83,7 +67,7 @@ public abstract class AbstractCommitSessionValveIntegrationTest<CommitSessionVal
   @Test
   @Parameters({"REPLICATE", "PARTITION"})
   public void invokeShouldCallNextChainedValveAndDoNothingWhenSessionManagerBelongsToGeodeButSessionDoesNotExist(
-      final RegionShortcut regionShortcut) throws IOException, ServletException {
+      final RegionShortcut regionShortcut) throws Exception {
     parameterizedSetUp(regionShortcut);
     doReturn(null).when(request).getSession(false);
     when(request.getContext().getManager()).thenReturn(deltaSessionManager);
@@ -97,10 +81,10 @@ public abstract class AbstractCommitSessionValveIntegrationTest<CommitSessionVal
   @Test
   @Parameters({"REPLICATE", "PARTITION"})
   public void invokeShouldCallNextChainedValveAndDoNothingWhenSessionManagerBelongsToGeodeAndSessionExistsButIsNotValid(
-      final RegionShortcut regionShortcut) throws IOException, ServletException {
+      final RegionShortcut regionShortcut) throws Exception {
     parameterizedSetUp(regionShortcut);
     doReturn(false).when(deltaSession).isValid();
-    doReturn(deltaSessionFacade).when(request).getSession(false);
+    doReturn(deltaSession).when(request).getSession(false);
     when(request.getContext().getManager()).thenReturn(deltaSessionManager);
 
     commitSessionValve.invoke(request, response);
@@ -112,10 +96,10 @@ public abstract class AbstractCommitSessionValveIntegrationTest<CommitSessionVal
   @Test
   @Parameters({"REPLICATE", "PARTITION"})
   public void invokeShouldCallNextChainedValveAndCommitTheExistingValidSessionWhenSessionManagerBelongsToGeode(
-      final RegionShortcut regionShortcut) throws IOException, ServletException {
+      final RegionShortcut regionShortcut) throws Exception {
     parameterizedSetUp(regionShortcut);
     deltaSessionManager.addSessionToTouch(TEST_SESSION_ID);
-    doReturn(deltaSessionFacade).when(request).getSession(false);
+    doReturn(deltaSession).when(request).getSession(false);
     when(request.getContext().getManager()).thenReturn(deltaSessionManager);
 
     commitSessionValve.invoke(request, response);
@@ -132,7 +116,7 @@ public abstract class AbstractCommitSessionValveIntegrationTest<CommitSessionVal
     final TestValve exceptionValve = new TestValve(true);
     commitSessionValve.setNext(exceptionValve);
     deltaSessionManager.addSessionToTouch(TEST_SESSION_ID);
-    doReturn(deltaSessionFacade).when(request).getSession(false);
+    doReturn(deltaSession).when(request).getSession(false);
     when(request.getContext().getManager()).thenReturn(deltaSessionManager);
 
     assertThatThrownBy(() -> commitSessionValve.invoke(request, response))

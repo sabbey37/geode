@@ -16,10 +16,6 @@ package org.apache.geode.modules.session.catalina;
 
 import static org.apache.geode.util.internal.UncheckedUtils.uncheckedCast;
 
-import java.io.IOException;
-
-import javax.servlet.ServletException;
-
 import org.apache.catalina.Context;
 import org.apache.catalina.Manager;
 import org.apache.catalina.connector.Request;
@@ -40,16 +36,6 @@ public abstract class AbstractCommitSessionValve<SelfT extends AbstractCommitSes
     log.info("Initialized");
   }
 
-  @Override
-  public void invoke(final Request request, final Response response)
-      throws IOException, ServletException {
-    try {
-      getNext().invoke(request, wrapResponse(response));
-    } finally {
-      commitSession(request);
-    }
-  }
-
   /**
    * Commit session only if DeltaSessionManager is in place.
    *
@@ -60,7 +46,7 @@ public abstract class AbstractCommitSessionValve<SelfT extends AbstractCommitSes
     final Context context = request.getContext();
     final Manager manager = context.getManager();
     if (manager instanceof DeltaSessionManager) {
-      final DeltaSessionFacade session = (DeltaSessionFacade) request.getSession(false);
+      final DeltaSession session = (DeltaSession) request.getSession(false);
       if (session != null) {
         final DeltaSessionManager<SelfT> deltaSessionManager = uncheckedCast(manager);
         if (session.isValid()) {

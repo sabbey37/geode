@@ -16,17 +16,14 @@ package org.apache.geode.modules.util;
 
 import java.io.Serializable;
 
-import javax.servlet.http.HttpSession;
-
 import org.apache.geode.cache.CustomExpiry;
 import org.apache.geode.cache.Declarable;
 import org.apache.geode.cache.ExpirationAction;
 import org.apache.geode.cache.ExpirationAttributes;
 import org.apache.geode.cache.Region;
+import org.apache.geode.modules.session.catalina.DeltaSessionInterface;
 
-@SuppressWarnings("serial")
-public class SessionCustomExpiry
-    implements CustomExpiry<String, HttpSession>, Serializable, Declarable {
+public class SessionCustomExpiry<T extends DeltaSessionInterface> implements CustomExpiry<String, T>, Serializable, Declarable {
 
   private static final long serialVersionUID = 182735509690640051L;
 
@@ -34,11 +31,10 @@ public class SessionCustomExpiry
       new ExpirationAttributes(1, ExpirationAction.DESTROY);
 
   @Override
-  public ExpirationAttributes getExpiry(Region.Entry<String, HttpSession> entry) {
-    HttpSession session = entry.getValue();
+  public ExpirationAttributes getExpiry(Region.Entry<String, T> entry) {
+    T session = entry.getValue();
     if (session != null) {
-      return new ExpirationAttributes(entry.getValue().getMaxInactiveInterval(),
-          ExpirationAction.DESTROY);
+      return new ExpirationAttributes(entry.getValue().getMaxInactiveInterval(), ExpirationAction.DESTROY);
     } else {
       return EXPIRE_NOW;
     }

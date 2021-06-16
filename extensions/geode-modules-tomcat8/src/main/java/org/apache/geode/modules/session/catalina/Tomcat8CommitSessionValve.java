@@ -15,7 +15,10 @@
 
 package org.apache.geode.modules.session.catalina;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
+
+import javax.servlet.ServletException;
 
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
@@ -32,6 +35,16 @@ public class Tomcat8CommitSessionValve
       outputBufferField.setAccessible(true);
     } catch (final NoSuchFieldException e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  @Override
+  public void invoke(final Request request, final Response response)
+      throws IOException, ServletException {
+    try {
+      getNext().invoke(request, wrapResponse(response));
+    } finally {
+      commitSession(request);
     }
   }
 

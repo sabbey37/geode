@@ -16,15 +16,13 @@ package org.apache.geode.modules.session.catalina;
 
 import java.util.Set;
 
-import javax.servlet.http.HttpSession;
-
 import org.apache.catalina.Session;
 
 import org.apache.geode.cache.GemFireCache;
 import org.apache.geode.cache.Region;
 import org.apache.geode.modules.session.catalina.internal.DeltaSessionStatistics;
 
-public interface SessionCache {
+public interface SessionCache<T> {
 
   void initialize();
 
@@ -36,7 +34,7 @@ public interface SessionCache {
 
   void putSession(Session session);
 
-  HttpSession getSession(String sessionId);
+  T getSession(String sessionId);
 
   void destroySession(String sessionId);
 
@@ -46,9 +44,9 @@ public interface SessionCache {
 
   GemFireCache getCache();
 
-  Region<String, HttpSession> getSessionRegion();
+  Region<String, T> getSessionRegion();
 
-  Region<String, HttpSession> getOperatingRegion();
+  Region<String, T> getOperatingRegion();
 
   boolean isPeerToPeer();
 

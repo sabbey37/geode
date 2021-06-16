@@ -24,6 +24,7 @@ import org.apache.coyote.OutputBuffer;
 import org.apache.juli.logging.Log;
 import org.junit.Before;
 
+
 public class CommitSessionValveIntegrationTest
     extends AbstractCommitSessionValveIntegrationTest<Tomcat9CommitSessionValve> {
 

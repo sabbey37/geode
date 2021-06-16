@@ -38,6 +38,7 @@ import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.Manager;
 import org.apache.catalina.session.StandardSession;
+import org.apache.catalina.session.StandardSessionFacade;
 import org.apache.juli.logging.Log;
 import org.junit.Before;
 import org.junit.Test;
@@ -98,21 +99,17 @@ public abstract class AbstractDeltaSessionTest<SessionT extends DeltaSession> {
   public void getSessionCreatesFacadeWhenFacadeIsNullAndPackageProtectionDisabled() {
     final DeltaSession session = newDeltaSession(manager);
 
-    final HttpSession returnedSession = session.getSession();
-
-    assertThat(returnedSession).isNotNull();
+    assertThat(session.getSession()).isNotNull();
   }
 
   @Test
   public void getSessionCreatesFacadeWhenFacadeIsNullAndPackageProtectionEnabled() {
     final DeltaSession session = spy(newDeltaSession(manager));
-    final DeltaSessionFacade facade = mock(DeltaSessionFacade.class);
+    final StandardSessionFacade facade = mock(StandardSessionFacade.class);
     doReturn(true).when(session).isPackageProtectionEnabled();
     doReturn(facade).when(session).getNewFacade(any(DeltaSession.class));
 
-    final HttpSession returnedSession = session.getSession();
-
-    assertThat(returnedSession).isEqualTo(facade);
+    assertThat(session.getSession()).isEqualTo(facade);
   }
 
   @Test

@@ -128,7 +128,7 @@ public abstract class AbstractDeltaSessionManagerTest<DeltaSessionManagerT exten
   }
 
   @Test
-  public void findSessionsReturnsProperSessionByIdWhenIdAndContextNameIsValid() throws IOException {
+  public void findSessionsReturnsProperSessionByIdWhenIdAndContextNameIsValid() {
     final String sessionId = "sessionId";
     final String contextName = "contextName";
 

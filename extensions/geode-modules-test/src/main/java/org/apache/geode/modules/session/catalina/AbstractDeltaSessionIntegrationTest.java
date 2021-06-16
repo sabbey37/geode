@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.util.EventListener;
 
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpSessionAttributeListener;
@@ -46,7 +47,7 @@ public abstract class AbstractDeltaSessionIntegrationTest<DeltaSessionManagerT e
   protected static final String KEY = "key1";
   protected static final String REGION_NAME = "sessions";
 
-  protected Region<String, HttpSession> region;
+  protected Region<String, DeltaSessionT> region;
   protected final DeltaSessionManagerT manager;
   protected final Context context = mock(Context.class);
 
@@ -60,7 +61,7 @@ public abstract class AbstractDeltaSessionIntegrationTest<DeltaSessionManagerT e
   @Before
   public void before() {
     region = server.getCache()
-        .<String, HttpSession>createRegionFactory(PARTITION)
+        .<String, DeltaSessionT>createRegionFactory(PARTITION)
         .addCacheListener(new SessionExpirationCacheListener())
         .create(REGION_NAME);
 

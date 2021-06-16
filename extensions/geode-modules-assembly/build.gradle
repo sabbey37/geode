@@ -19,6 +19,7 @@ evaluationDependsOn(':extensions:geode-modules')
 evaluationDependsOn(':extensions:geode-modules-tomcat7')
 evaluationDependsOn(':extensions:geode-modules-tomcat8')
 evaluationDependsOn(':extensions:geode-modules-tomcat9')
+evaluationDependsOn(':extensions:geode-modules-tomcat10')
 evaluationDependsOn(':extensions:geode-modules-session')
 evaluationDependsOn(':extensions:geode-modules-session-internal')
 
@@ -51,6 +52,7 @@ def configureTcServerAssembly = {
     from project(':extensions:geode-modules-tomcat7').tasks.named('jar')
     from project(':extensions:geode-modules-tomcat8').tasks.named('jar')
     from project(':extensions:geode-modules-tomcat9').tasks.named('jar')
+    from project(':extensions:geode-modules-tomcat10').tasks.named('jar')
     from configurations.slf4jDeps
   }
 
@@ -89,6 +91,7 @@ def configureTcServerAssembly = {
     from project(':extensions:geode-modules-tomcat7').tasks.named('jar')
     from project(':extensions:geode-modules-tomcat8').tasks.named('jar')
     from project(':extensions:geode-modules-tomcat9').tasks.named('jar')
+    from project(':extensions:geode-modules-tomcat10').tasks.named('jar')
     from configurations.slf4jDeps
   }
 
@@ -174,6 +177,7 @@ tasks.register('distTomcat', Zip) {
     from project(':extensions:geode-modules-tomcat7').tasks.named('jar')
     from project(':extensions:geode-modules-tomcat8').tasks.named('jar')
     from project(':extensions:geode-modules-tomcat9').tasks.named('jar')
+    from project(':extensions:geode-modules-tomcat10').tasks.named('jar')
     from configurations.slf4jDeps
   }
 

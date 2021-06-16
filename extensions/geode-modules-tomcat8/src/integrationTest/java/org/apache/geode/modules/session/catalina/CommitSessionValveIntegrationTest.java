@@ -26,6 +26,7 @@ import org.apache.coyote.OutputBuffer;
 import org.apache.juli.logging.Log;
 import org.junit.Before;
 
+
 public class CommitSessionValveIntegrationTest
     extends AbstractCommitSessionValveIntegrationTest<Tomcat8CommitSessionValve> {
 
@@ -47,7 +48,6 @@ public class CommitSessionValveIntegrationTest
     response.setRequest(request);
     response.setCoyoteResponse(coyoteResponse);
   }
-
 
   @Override
   protected Tomcat8CommitSessionValve createCommitSessionValve() {
